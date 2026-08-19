@@ -1,10 +1,10 @@
 "use server";
 
 import { db } from "@/db";
-import { properties, flats, tenants, meters } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { properties, flats } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { id } from "@/lib/id";
-import { requireOrg, str, num } from "./helpers";
+import { requireOrg, str, num, assertOrgOwnsProperty, assertOrgOwnsFlat } from "./helpers";
 import { revalidatePath } from "next/cache";
 
 export async function createProperty(formData: FormData) {
@@ -19,26 +19,24 @@ export async function createProperty(formData: FormData) {
 
 export async function updateProperty(propertyId: string, formData: FormData) {
   const session = await requireOrg();
+  await assertOrgOwnsProperty(session.orgId, propertyId);
   const name = str(formData, "name");
   const address = str(formData, "address");
-  await db
-    .update(properties)
-    .set({ name, address })
-    .where(and(eq(properties.id, propertyId), eq(properties.orgId, session.orgId)));
+  await db.update(properties).set({ name, address }).where(eq(properties.id, propertyId));
   revalidatePath("/properties");
 }
 
 export async function deleteProperty(propertyId: string) {
   const session = await requireOrg();
-  await db
-    .delete(properties)
-    .where(and(eq(properties.id, propertyId), eq(properties.orgId, session.orgId)));
+  await assertOrgOwnsProperty(session.orgId, propertyId);
+  await db.delete(properties).where(eq(properties.id, propertyId));
   revalidatePath("/properties");
   revalidatePath("/dashboard");
 }
 
 export async function createFlat(propertyId: string, formData: FormData) {
-  await requireOrg();
+  const session = await requireOrg();
+  await assertOrgOwnsProperty(session.orgId, propertyId);
   const name = str(formData, "name");
   const floor = str(formData, "floor");
   const rentAmount = num(formData, "rentAmount", 0);
@@ -56,7 +54,8 @@ export async function createFlat(propertyId: string, formData: FormData) {
 }
 
 export async function updateFlat(flatId: string, propertyId: string, formData: FormData) {
-  await requireOrg();
+  const session = await requireOrg();
+  await assertOrgOwnsFlat(session.orgId, flatId);
   const name = str(formData, "name");
   const floor = str(formData, "floor");
   const rentAmount = num(formData, "rentAmount", 0);
@@ -70,7 +69,8 @@ export async function updateFlat(flatId: string, propertyId: string, formData: F
 }
 
 export async function deleteFlat(flatId: string, propertyId: string) {
-  await requireOrg();
+  const session = await requireOrg();
+  await assertOrgOwnsFlat(session.orgId, flatId);
   await db.delete(flats).where(eq(flats.id, flatId));
   revalidatePath(`/properties/${propertyId}`);
   revalidatePath("/properties");

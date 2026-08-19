@@ -57,17 +57,17 @@ export default async function PropertyDetailPage({ params }: { params: { id: str
                 </div>
                 <span
                   className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                    flat.tenants.length > 0 ? "bg-okay/15 text-okay" : "bg-ink-900/8 text-ink-600"
+                    flat.tenants.some((tn) => tn.active) ? "bg-okay/15 text-okay" : "bg-ink-900/8 text-ink-600"
                   }`}
                 >
-                  {flat.tenants.length > 0 ? t("occupied") : t("vacant")}
+                  {flat.tenants.some((tn) => tn.active) ? t("occupied") : t("vacant")}
                 </span>
               </div>
               <p className="tabular mt-3 text-lg font-semibold text-ink-900">{money(flat.rentAmount, org.currency)}</p>
               <p className="text-xs text-ink-600">{t("rent_amount")}</p>
 
-              {flat.tenants[0] && (
-                <p className="mt-2 truncate text-sm text-ink-700">👤 {flat.tenants[0].name}</p>
+              {flat.tenants.find((tn) => tn.active) && (
+                <p className="mt-2 truncate text-sm text-ink-700">👤 {flat.tenants.find((tn) => tn.active)!.name}</p>
               )}
 
               <div className="mt-4 flex items-center gap-2">
@@ -100,7 +100,7 @@ export default async function PropertyDetailPage({ params }: { params: { id: str
                 </Modal>
                 <ConfirmDeleteButton
                   action={deleteFlat.bind(null, flat.id, property.id)}
-                  confirmText={t("confirm_delete")}
+                  confirmText={t("confirm_delete_flat")}
                   className="ml-auto rounded-lg p-2 text-ink-600/50 hover:bg-clay-500/10 hover:text-clay-500"
                 />
               </div>

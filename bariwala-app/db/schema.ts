@@ -22,6 +22,7 @@ export const meterTypeEnum = pgEnum("meter_type", [
   "other",
 ]);
 export const meterScopeEnum = pgEnum("meter_scope", ["flat", "shared"]);
+export const allocationMethodEnum = pgEnum("allocation_method", ["owner_expense", "equal_split"]);
 export const adjustmentStatusEnum = pgEnum("adjustment_status", [
   "unpaid",
   "partial",
@@ -114,6 +115,11 @@ export const meters = pgTable("meters", {
     .references(() => properties.id, { onDelete: "cascade" }),
   flatId: text("flat_id").references(() => flats.id, { onDelete: "cascade" }),
   scope: meterScopeEnum("scope").notNull().default("flat"),
+  // Only meaningful for scope="shared" (spec #17): owner_expense keeps the cost purely
+  // on the owner's side (default — safest, matches how it worked before this field
+  // existed), equal_split divides the month's reading amount across the property's
+  // active flats and folds each flat's share into that flat's bill.
+  allocationMethod: allocationMethodEnum("allocation_method").notNull().default("owner_expense"),
   type: meterTypeEnum("type").notNull().default("electricity"),
   label: text("label").notNull(), // e.g. "Electricity - 3B" or "Water Pump"
   unitRate: numeric("unit_rate", { precision: 10, scale: 4 })
@@ -169,6 +175,13 @@ export const monthlyAdjustments = pgTable(
     month: date("month").notNull(),
     rentAmount: numeric("rent_amount", { precision: 12, scale: 2 }).notNull().default("0"),
     billsAmount: numeric("bills_amount", { precision: 12, scale: 2 }).notNull().default("0"),
+    // Computed-from-meters totals per category, e.g. {"electricity": 1550, "water": 500}.
+    // Kept separate from manual overrides so we can always show "from meter" vs "entered manually".
+    billBreakdown: jsonb("bill_breakdown").notNull().default({}),
+    // Owner-entered amounts per category that take precedence over the meter-computed
+    // total for that category (spec: owner must be able to type in a bill directly,
+    // not only derive it from a meter). e.g. {"gas": 300} when there's no gas meter.
+    categoryOverrides: jsonb("category_overrides").notNull().default({}),
     adjustmentAmount: numeric("adjustment_amount", { precision: 12, scale: 2 }).notNull().default("0"), // manual +/- adjustment (discount, arrears etc.)
     adjustmentNote: text("adjustment_note"),
     totalDue: numeric("total_due", { precision: 12, scale: 2 }).notNull().default("0"),

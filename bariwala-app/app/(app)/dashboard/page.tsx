@@ -1,4 +1,4 @@
-import { getOrgContext, getAdjustmentsForMonth, getExpensesForOrg, getPropertiesWithFlats, getPaymentsForOrg } from "@/lib/queries";
+import { getOrgContext, getAdjustmentsForMonth, getExpensesForOrg, getPropertiesWithFlats, getPaymentsForOrg, getNeedsAttention } from "@/lib/queries";
 import { getDict } from "@/lib/i18n";
 import { PageHeader, Card, StatusPill } from "@/components/ui";
 import { money, firstOfMonth, monthLabel } from "@/lib/format";
@@ -11,16 +11,17 @@ export default async function DashboardPage() {
   const month = firstOfMonth();
   const dLocale = org.language === "bn" ? "bn-BD" : "en-US";
 
-  const [adjustments, expensesList, properties, recentPayments] = await Promise.all([
+  const [adjustments, expensesList, properties, recentPayments, attention] = await Promise.all([
     getAdjustmentsForMonth(org.id, month),
     getExpensesForOrg(org.id),
     getPropertiesWithFlats(org.id),
     getPaymentsForOrg(org.id),
+    getNeedsAttention(org.id, month),
   ]);
 
   const collected = adjustments.reduce((s, a) => s + parseFloat(a.totalPaid), 0);
   const due = adjustments.reduce((s, a) => s + Math.max(0, parseFloat(a.totalDue) - parseFloat(a.totalPaid)), 0);
-  const occupiedFlats = properties.flatMap((p) => p.flats).filter((f) => f.active).length;
+  const occupiedFlats = properties.flatMap((p) => p.flats).filter((f: any) => f.tenants?.some((tn: any) => tn.active)).length;
   const totalFlats = properties.flatMap((p) => p.flats).length;
   const monthExpenses = expensesList
     .filter((e) => e.spentOn.slice(0, 7) === month.slice(0, 7))
@@ -55,6 +56,44 @@ export default async function DashboardPage() {
           </Card>
         ))}
       </div>
+
+      {(attention.unpaidCount > 0 || attention.vacantCount > 0 || attention.missingReadings > 0) && (
+        <div className="mt-6">
+          <h2 className="mb-3 text-sm font-semibold text-ink-800">{t("needs_attention")}</h2>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {attention.unpaidCount > 0 && (
+              <Link href="/bills" className="card flex items-center gap-3 !p-4 hover:-translate-y-0.5 transition-transform">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-clay-500/15 text-clay-500">
+                  <Icon path={paths.receipt} className="h-4 w-4" />
+                </div>
+                <p className="text-sm text-ink-900">
+                  <span className="font-semibold">{attention.unpaidCount}</span> {t("unpaid_flats_notice")}
+                </p>
+              </Link>
+            )}
+            {attention.missingReadings > 0 && (
+              <Link href="/meters" className="card flex items-center gap-3 !p-4 hover:-translate-y-0.5 transition-transform">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brass-400/20 text-brass-600">
+                  <Icon path={paths.gauge} className="h-4 w-4" />
+                </div>
+                <p className="text-sm text-ink-900">
+                  <span className="font-semibold">{attention.missingReadings}</span> {t("missing_readings_notice")}
+                </p>
+              </Link>
+            )}
+            {attention.vacantCount > 0 && (
+              <Link href="/properties" className="card flex items-center gap-3 !p-4 hover:-translate-y-0.5 transition-transform">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-ink-900/8 text-ink-700">
+                  <Icon path={paths.building} className="h-4 w-4" />
+                </div>
+                <p className="text-sm text-ink-900">
+                  <span className="font-semibold">{attention.vacantCount}</span> {t("vacant_flats_notice")}
+                </p>
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="mt-8">
         <h2 className="mb-3 text-sm font-semibold text-ink-800">{t("quick_actions")}</h2>

@@ -3,8 +3,9 @@ import { getDict } from "@/lib/i18n";
 import { PageHeader, Card, Field, Input, Select, Button, EmptyState, StatusPill } from "@/components/ui";
 import { Modal } from "@/components/Modal";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
-import { createMeter, updateMeter, deleteMeter } from "@/lib/actions/meters";
+import { createMeter, updateMeter, deleteMeter, deleteReading } from "@/lib/actions/meters";
 import { ReadingForm } from "@/components/ReadingForm";
+import { AllocationAdvanced } from "@/components/AllocationAdvanced";
 import { Icon, paths } from "@/components/icons";
 import { money, firstOfMonth, monthLabel, shortDate } from "@/lib/format";
 
@@ -80,18 +81,27 @@ export default async function MetersPage() {
               </Field>
               <div className="grid grid-cols-3 gap-3">
                 <Field label={t("unit_rate")}>
-                  <Input name="unitRate" type="number" step="0.0001" min="0" defaultValue="0" />
+                  <Input name="unitRate" type="number" step="0.0001" min="0" defaultValue={(org.settings as any)?.defaultUnitRate ?? 0} />
                 </Field>
                 <Field label={t("meter_charge")}>
-                  <Input name="meterCharge" type="number" step="0.01" min="0" defaultValue="0" />
+                  <Input name="meterCharge" type="number" step="0.01" min="0" defaultValue={(org.settings as any)?.defaultMeterCharge ?? 0} />
                 </Field>
                 <Field label={t("other_charge")}>
-                  <Input name="otherCharge" type="number" step="0.01" min="0" defaultValue="0" />
+                  <Input name="otherCharge" type="number" step="0.01" min="0" defaultValue={(org.settings as any)?.defaultOtherCharge ?? 0} />
                 </Field>
               </div>
               <Field label={t("starting_reading")}>
                 <Input name="startingReading" type="number" step="0.01" min="0" defaultValue="0" />
               </Field>
+              <AllocationAdvanced
+                labels={{
+                  advanced: t("more_settings"),
+                  allocation: "Shared cost handling",
+                  ownerExpense: "Owner expense (don't bill tenants)",
+                  equalSplit: "Split equally across flats",
+                  hint: "Only applies to shared meters like a water pump",
+                }}
+              />
               <Button type="submit" className="w-full">
                 {t("save")}
               </Button>
@@ -101,7 +111,7 @@ export default async function MetersPage() {
       />
 
       {meterCards.length === 0 ? (
-        <EmptyState title={t("no_flats")} />
+        <EmptyState title={t("no_meters_yet")} />
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {meterCards.map(({ meter: m, prevReading, thisMonth, history }) => (
@@ -116,6 +126,11 @@ export default async function MetersPage() {
                     <p className="text-xs text-ink-600">
                       {m.property?.name}
                       {m.flat ? ` · ${m.flat.name}` : ` · ${t("shared_meter")}`}
+                      {!m.flat && (
+                        <span className="ml-1.5 rounded-full bg-ink-900/8 px-1.5 py-0.5 text-[10px] font-medium text-ink-700">
+                          {m.allocationMethod === "equal_split" ? "Split across flats" : "Owner expense"}
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -156,6 +171,14 @@ export default async function MetersPage() {
                         <input type="checkbox" name="active" defaultChecked={m.active} className="h-4 w-4 rounded border-ink-900/20" />
                         {t("status_active")}
                       </label>
+                      {!m.flat && (
+                        <Field label="Shared cost handling" hint="How this shared meter's cost affects tenant bills">
+                          <Select name="allocationMethod" defaultValue={m.allocationMethod}>
+                            <option value="owner_expense">Owner expense (don't bill tenants)</option>
+                            <option value="equal_split">Split equally across flats</option>
+                          </Select>
+                        </Field>
+                      )}
                       <Button type="submit" className="w-full">
                         {t("save")}
                       </Button>
@@ -228,6 +251,12 @@ export default async function MetersPage() {
                           {h.previousReading} → {h.currentReading} ({h.unitsUsed} u)
                         </span>
                         <span className="tabular font-medium text-ink-900">{money(h.amount, org.currency)}</span>
+                        <ConfirmDeleteButton
+                          action={deleteReading.bind(null, h.id, m.id, h.month)}
+                          confirmText={t("confirm_delete")}
+                          className="rounded p-1 text-ink-600/40 hover:bg-clay-500/10 hover:text-clay-500"
+                          iconClassName="h-3 w-3"
+                        />
                       </div>
                     ))}
                   </div>

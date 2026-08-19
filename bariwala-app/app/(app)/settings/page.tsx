@@ -1,7 +1,7 @@
 import { getOrgContext } from "@/lib/queries";
 import { getDict } from "@/lib/i18n";
 import { PageHeader, Card, Field, Input, Select, Button } from "@/components/ui";
-import { updateOrgSettings, setLanguage } from "@/lib/actions/settings";
+import { updateOrgSettings, updateBillingDefaults, setLanguage } from "@/lib/actions/settings";
 
 export default async function SettingsPage() {
   const { org, session } = await getOrgContext();
@@ -54,12 +54,25 @@ export default async function SettingsPage() {
           </div>
 
           <div className="mt-8 border-t border-ink-900/8 pt-5">
-            <h3 className="mb-2 text-sm font-semibold text-ink-800">{t("default_rates")}</h3>
-            <p className="text-sm text-ink-600">
-              Unit rates, meter charges and other charges are set per meter under{" "}
-              <span className="font-medium text-ink-800">{t("nav_meters")}</span>, so each flat and shared meter
-              (like a water pump) can have its own rate.
+            <h3 className="mb-3 text-sm font-semibold text-ink-800">{t("default_rates")}</h3>
+            <p className="mb-4 text-sm text-ink-600">
+              Pre-fills new meters so you're not typing the same rate every time. Each meter can still be
+              adjusted individually under <span className="font-medium text-ink-800">{t("nav_meters")}</span>.
             </p>
+            <form action={updateBillingDefaults} className="grid grid-cols-3 gap-3">
+              <Field label={t("unit_rate")}>
+                <Input name="defaultUnitRate" type="number" step="0.0001" min="0" defaultValue={(org.settings as any)?.defaultUnitRate ?? 0} />
+              </Field>
+              <Field label={t("meter_charge")}>
+                <Input name="defaultMeterCharge" type="number" step="0.01" min="0" defaultValue={(org.settings as any)?.defaultMeterCharge ?? 0} />
+              </Field>
+              <Field label={t("other_charge")}>
+                <Input name="defaultOtherCharge" type="number" step="0.01" min="0" defaultValue={(org.settings as any)?.defaultOtherCharge ?? 0} />
+              </Field>
+              <div className="col-span-3">
+                <Button type="submit">{t("save_changes")}</Button>
+              </div>
+            </form>
           </div>
         </Card>
       </div>

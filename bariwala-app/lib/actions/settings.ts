@@ -2,7 +2,7 @@
 
 import { db } from "@/db";
 import { organizations, notifications } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { requireOrg, str } from "./helpers";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
@@ -31,6 +31,24 @@ export async function updateOrgSettings(formData: FormData) {
   revalidatePath("/", "layout");
 }
 
+// Spec #38: billing defaults so a new meter form doesn't start from zero every time.
+// Stored on organizations.settings (jsonb) rather than a new table, since these are
+// just pre-fill values, not something referenced elsewhere.
+export async function updateBillingDefaults(formData: FormData) {
+  const session = await requireOrg();
+  const org = await db.query.organizations.findFirst({ where: eq(organizations.id, session.orgId) });
+  const currentSettings = (org?.settings as Record<string, unknown>) ?? {};
+  const defaultUnitRate = parseFloat(String(formData.get("defaultUnitRate") ?? "0")) || 0;
+  const defaultMeterCharge = parseFloat(String(formData.get("defaultMeterCharge") ?? "0")) || 0;
+  const defaultOtherCharge = parseFloat(String(formData.get("defaultOtherCharge") ?? "0")) || 0;
+  await db
+    .update(organizations)
+    .set({ settings: { ...currentSettings, defaultUnitRate, defaultMeterCharge, defaultOtherCharge } })
+    .where(eq(organizations.id, session.orgId));
+  revalidatePath("/settings");
+  revalidatePath("/meters");
+}
+
 export async function markAllNotificationsRead() {
   const session = await requireOrg();
   await db.update(notifications).set({ read: true }).where(eq(notifications.orgId, session.orgId));
@@ -38,7 +56,10 @@ export async function markAllNotificationsRead() {
 }
 
 export async function markNotificationRead(notificationId: string) {
-  await requireOrg();
-  await db.update(notifications).set({ read: true }).where(eq(notifications.id, notificationId));
+  const session = await requireOrg();
+  await db
+    .update(notifications)
+    .set({ read: true })
+    .where(and(eq(notifications.id, notificationId), eq(notifications.orgId, session.orgId)));
   revalidatePath("/", "layout");
 }

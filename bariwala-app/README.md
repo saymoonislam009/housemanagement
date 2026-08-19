@@ -106,6 +106,54 @@ npm run db:migrate
   with the old version, but the structure (properties → flats → tenants → meters → bills)
   matches what you asked for.
 
+## Changelog — House Manager overhaul pass
+
+This pass fixed a real security gap and reworked the billing/UX model per a detailed
+product spec. See the full report delivered in chat for the itemized breakdown. Summary:
+
+- **Security**: every mutating Server Action now verifies the record actually belongs
+  to the logged-in user's organization before touching it (previously several
+  edit/delete actions trusted the ID alone).
+- **Billing model**: monthly bills now show an editable per-category breakdown
+  (electricity/water/gas/other), each either computed from a meter or manually typed in
+  by the owner, not just a single lump "bills" number.
+- **Payments**: payments can now be edited, not just added/deleted; editing correctly
+  recalculates the bill's paid/remaining/status.
+- **Tenants**: "Mark as moved out" is now the primary action (keeps billing history
+  intact); permanent delete is still available but tucked under a secondary disclosure.
+- **Terminology**: "Property" → "House", "Monthly Adjustment" → "Monthly Bills", etc.
+  throughout the UI (English and Bengali).
+- **Onboarding**: a brand-new account is walked straight into naming their first house
+  instead of hitting a generic empty state.
+- **Dashboard**: added a "Needs attention" panel (unpaid bills, vacant flats, missing
+  meter readings this month).
+- **Occupancy bug fix**: "occupied" was checking a flat's own active flag instead of
+  whether it has an active tenant — fixed everywhere it appeared.
+- **Money math**: added a `round2` helper used at every calculation step to avoid
+  floating-point drift in stored amounts.
+- Database migration is additive only (`0001_...sql` just adds two nullable-with-default
+  JSON columns) — no existing data is touched or reset.
+
+## Changelog — Recheck pass
+
+- **Fixed a bug from the previous pass**: the new ownership guards threw errors that
+  weren't caught anywhere, meaning trying to access something you didn't own would
+  crash with Next.js's raw technical error page. Added an error boundary at
+  `app/(app)/error.tsx` that shows a friendly message instead (spec #49).
+- **Shared-meter allocation** (previously flagged as missing): shared meters like a
+  water pump can now be set to "split equally across flats," which folds the reading's
+  cost into every active flat's bill automatically, or left as "owner expense" (the
+  original, tenant-unaffected behavior). Tucked under an Advanced disclosure so it
+  doesn't clutter the meter form for the common case.
+- **Monthly History page** (previously flagged as missing): `/history` — a house-wide
+  view with Expected/Collected/Outstanding/Expenses for a selected month, a flat-by-flat
+  table, and a "This Year" toggle showing the same three figures per month.
+- **Settings billing defaults**: unit rate / meter charge / other charge can now be set
+  once in Settings and pre-fill every new meter you create, instead of always starting
+  from zero.
+- Migration `0002_hard_talos.sql` adds the `allocation_method` enum + column — additive
+  only, verified against existing data.
+
 ## Project structure
 
 ```

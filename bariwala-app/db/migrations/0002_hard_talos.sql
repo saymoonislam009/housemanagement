@@ -1,0 +1,2 @@
+CREATE TYPE "public"."allocation_method" AS ENUM('owner_expense', 'equal_split');--> statement-breakpoint
+ALTER TABLE "meters" ADD COLUMN "allocation_method" "allocation_method" DEFAULT 'owner_expense' NOT NULL;

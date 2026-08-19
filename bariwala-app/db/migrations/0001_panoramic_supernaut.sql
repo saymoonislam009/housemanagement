@@ -1,0 +1,2 @@
+ALTER TABLE "monthly_adjustments" ADD COLUMN "bill_breakdown" jsonb DEFAULT '{}'::jsonb NOT NULL;--> statement-breakpoint
+ALTER TABLE "monthly_adjustments" ADD COLUMN "category_overrides" jsonb DEFAULT '{}'::jsonb NOT NULL;
