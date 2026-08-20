@@ -23,8 +23,8 @@ const bengali = Noto_Sans_Bengali({
 });
 
 export const metadata: Metadata = {
-  title: "Bariwala — Property & Tenant Ledger",
-  description: "Manage properties, tenants, meters, bills and payments in one place.",
+  title: "House Management — Property & Tenant Ledger",
+  description: "Manage your house, flats, tenants, meters, bills and payments in one place.",
 };
 
 export const viewport: Viewport = {

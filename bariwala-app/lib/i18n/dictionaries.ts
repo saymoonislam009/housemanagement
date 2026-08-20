@@ -1,6 +1,6 @@
 export const dictionaries = {
   en: {
-    app_name: "Bariwala",
+    app_name: "House Management",
     nav_dashboard: "Home",
     nav_properties: "House",
     nav_tenants: "Tenants",
@@ -194,7 +194,7 @@ export const dictionaries = {
     finish_setup: "Finish setup",
   },
   bn: {
-    app_name: "বাড়িওয়ালা",
+    app_name: "হাউস ম্যানেজমেন্ট",
     nav_dashboard: "হোম",
     nav_properties: "বাড়ি",
     nav_tenants: "ভাড়াটিয়া",

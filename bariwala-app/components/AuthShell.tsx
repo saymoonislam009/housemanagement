@@ -36,7 +36,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
       <div className="relative w-full max-w-sm">
         <div className="mb-8 flex items-center justify-center gap-2.5">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brass-500 font-display text-lg font-bold text-ink-950">
-            বা
+            H
           </div>
           <span className="font-display text-xl font-semibold text-paper-50">{t("app_name")}</span>
         </div>
