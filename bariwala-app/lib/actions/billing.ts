@@ -5,6 +5,7 @@ import { flats, properties, meters, meterReadings, monthlyAdjustments, payments,
 import { and, eq } from "drizzle-orm";
 import { id } from "@/lib/id";
 import { requireOrg, str, num, round2, assertOrgOwnsFlat, assertOrgOwnsAdjustment, assertOrgOwnsPayment } from "./helpers";
+import { monthOffset } from "@/lib/format";
 import { revalidatePath } from "next/cache";
 
 type CategoryKey = "electricity" | "water" | "gas" | "other";
@@ -97,7 +98,20 @@ export async function recalcAdjustmentForFlatMonth(flatId: string, month: string
   const rentAmount = parseFloat(flat.rentAmount);
   const adjustmentAmount = existing ? parseFloat(existing.adjustmentAmount) : 0;
   const totalPaid = existing ? parseFloat(existing.totalPaid) : 0;
-  const totalDue = round2(rentAmount + billsAmount + adjustmentAmount);
+
+  // Spec #7: whatever the tenant still owed last month rolls into this month's total,
+  // rather than quietly disappearing. Because each month already includes its own
+  // predecessor's outstanding balance, this naturally compounds arrears across months
+  // without needing to walk the whole history every time.
+  const prevMonth = monthOffset(month, -1);
+  const prevAdjustment = await db.query.monthlyAdjustments.findFirst({
+    where: and(eq(monthlyAdjustments.flatId, flatId), eq(monthlyAdjustments.month, prevMonth)),
+  });
+  const previousOutstanding = prevAdjustment
+    ? round2(Math.max(0, parseFloat(prevAdjustment.totalDue) - parseFloat(prevAdjustment.totalPaid)))
+    : 0;
+
+  const totalDue = round2(rentAmount + billsAmount + adjustmentAmount + previousOutstanding);
   const status = computeStatus(totalDue, totalPaid);
 
   if (existing) {
@@ -107,6 +121,7 @@ export async function recalcAdjustmentForFlatMonth(flatId: string, month: string
         rentAmount: String(rentAmount),
         billsAmount: String(billsAmount),
         billBreakdown: final,
+        previousOutstanding: String(previousOutstanding),
         totalDue: String(totalDue),
         status,
         updatedAt: new Date(),
@@ -127,6 +142,7 @@ export async function recalcAdjustmentForFlatMonth(flatId: string, month: string
       billsAmount: String(billsAmount),
       billBreakdown: final,
       categoryOverrides: {},
+      previousOutstanding: String(previousOutstanding),
       adjustmentAmount: "0",
       totalDue: String(totalDue),
       totalPaid: "0",
@@ -175,7 +191,9 @@ export async function setManualAdjustment(adjustmentId: string, formData: FormDa
   const existing = await assertOrgOwnsAdjustment(session.orgId, adjustmentId);
   const amount = num(formData, "adjustmentAmount", 0);
   const note = str(formData, "adjustmentNote");
-  const totalDue = round2(parseFloat(existing.rentAmount) + parseFloat(existing.billsAmount) + amount);
+  const totalDue = round2(
+    parseFloat(existing.rentAmount) + parseFloat(existing.billsAmount) + amount + parseFloat(existing.previousOutstanding)
+  );
   const status = computeStatus(totalDue, parseFloat(existing.totalPaid));
   await db
     .update(monthlyAdjustments)

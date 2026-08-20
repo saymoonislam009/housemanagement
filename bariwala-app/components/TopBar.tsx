@@ -19,7 +19,7 @@ export function TopBar({
   const dLocale = locale === "bn" ? "bn-BD" : "en-US";
 
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-ink-900/10 bg-paper-100/90 px-4 py-3 backdrop-blur md:px-8">
+    <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-ink-900/10 bg-paper-100/90 px-4 py-3 backdrop-blur md:px-8 print:hidden">
       <p className="truncate font-display text-base font-medium text-ink-900 md:text-lg">{title}</p>
 
       <div className="flex shrink-0 items-center gap-1.5">

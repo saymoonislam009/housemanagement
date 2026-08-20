@@ -1,7 +1,11 @@
-import { getOrgContext, getTenant, getPaymentsForOrg, getTenantMonthlyHistory } from "@/lib/queries";
+import { getOrgContext, getTenant, getPaymentsForOrg, getTenantMonthlyHistory, getTenantDocuments } from "@/lib/queries";
 import { getDict } from "@/lib/i18n";
 import { PageHeader, Card, Field, Input, Textarea, Button, StatusPill } from "@/components/ui";
+import { Modal } from "@/components/Modal";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
+import { MarkMovedOutButton } from "@/components/MarkMovedOutButton";
+import { DocumentUploadForm } from "@/components/DocumentUploadForm";
+import { deleteTenantDocument } from "@/lib/actions/documents";
 import { updateTenant, deleteTenant, markTenantMovedOut } from "@/lib/actions/tenants";
 import { Icon, paths } from "@/components/icons";
 import { money, shortDate, monthLabel } from "@/lib/format";
@@ -14,9 +18,10 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
   const dLocale = org.language === "bn" ? "bn-BD" : "en-US";
   const tenant = await getTenant(org.id, params.id);
   if (!tenant) notFound();
-  const [payments, history] = await Promise.all([
+  const [payments, history, documents] = await Promise.all([
     getPaymentsForOrg(org.id, tenant.flatId).then((rows) => rows.filter((p) => p.tenantId === tenant.id)),
     getTenantMonthlyHistory(tenant.flatId, 12),
+    getTenantDocuments(tenant.id),
   ]);
 
   return (
@@ -31,16 +36,11 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
         action={
           <div className="flex items-center gap-2">
             {tenant.active && (
-              <form
+              <MarkMovedOutButton
                 action={markTenantMovedOut.bind(null, tenant.id)}
-                onSubmit={(e) => {
-                  if (!confirm(t("confirm_moved_out"))) e.preventDefault();
-                }}
-              >
-                <Button variant="ghost" type="submit">
-                  {t("mark_moved_out")}
-                </Button>
-              </form>
+                confirmText={t("confirm_moved_out")}
+                label={t("mark_moved_out")}
+              />
             )}
           </div>
         }
@@ -95,6 +95,13 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
         <Card>
           <h2 className="mb-3 text-sm font-semibold text-ink-800">{t("rent_amount")}</h2>
           <p className="tabular font-display text-2xl font-semibold text-ink-950">{money(tenant.rentAmount, org.currency)}</p>
+          <Link
+            href={`/tenants/${tenant.id}/statement`}
+            className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-brass-600 hover:underline"
+          >
+            <Icon path={paths.receipt} className="h-3.5 w-3.5" />
+            View this month's statement
+          </Link>
           <div className="mt-6 border-t border-ink-900/8 pt-4">
             <h3 className="mb-3 text-sm font-semibold text-ink-800">{t("payments_title")}</h3>
             {payments.length === 0 ? (
@@ -111,6 +118,50 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
             )}
           </div>
         </Card>
+      </div>
+
+      <div className="mt-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-ink-800">Documents</h2>
+          <Modal title="Upload document" trigger={<Button variant="ghost" className="!px-3 !py-1.5 text-xs">+ Upload</Button>}>
+            <DocumentUploadForm tenantId={tenant.id} />
+          </Modal>
+        </div>
+        {documents.length === 0 ? (
+          <Card>
+            <p className="py-4 text-center text-sm text-ink-600">
+              No documents yet. Add a photo, NID, or rental agreement whenever you're ready — it's optional.
+            </p>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {documents.map((d) => (
+              <Card key={d.id} className="!p-3">
+                <a href={`/api/documents/${d.id}`} target="_blank" rel="noopener noreferrer" className="block">
+                  {d.mimeType.startsWith("image/") ? (
+                    <div className="flex h-20 items-center justify-center overflow-hidden rounded-lg bg-ink-900/5">
+                      <img src={`/api/documents/${d.id}`} alt={d.filename} className="h-full w-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="flex h-20 items-center justify-center rounded-lg bg-ink-900/5 text-ink-600">
+                      <Icon path={paths.receipt} className="h-6 w-6" />
+                    </div>
+                  )}
+                </a>
+                <p className="mt-2 truncate text-xs font-medium text-ink-800">{d.filename}</p>
+                <p className="text-[10px] text-ink-500">{(d.sizeBytes / 1024).toFixed(0)} KB</p>
+                <div className="mt-1">
+                  <ConfirmDeleteButton
+                    action={deleteTenantDocument.bind(null, d.id, tenant.id)}
+                    confirmText="Delete this document?"
+                    className="text-[11px] text-clay-500/70 hover:text-clay-500"
+                    iconClassName="h-3 w-3"
+                  />
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
 
       {history.length > 0 && (

@@ -32,6 +32,11 @@ export default function AppError({ error, reset }: { error: Error & { digest?: s
           <p className="mt-2 max-w-sm text-sm text-ink-600">
             Please try again. If this keeps happening, come back to the dashboard and retry from there.
           </p>
+          {/* TEMPORARY debug output — remove once the root cause is confirmed fixed. */}
+          <div className="mt-4 max-w-md rounded-lg bg-ink-900/5 p-3 text-left">
+            <p className="break-words font-mono text-xs text-clay-500">{error.message || "(no message)"}</p>
+            {error.digest && <p className="mt-1 font-mono text-[10px] text-ink-500">digest: {error.digest}</p>}
+          </div>
         </>
       )}
       <div className="mt-6 flex gap-2">

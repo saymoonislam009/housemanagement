@@ -182,6 +182,9 @@ export const monthlyAdjustments = pgTable(
     // total for that category (spec: owner must be able to type in a bill directly,
     // not only derive it from a meter). e.g. {"gas": 300} when there's no gas meter.
     categoryOverrides: jsonb("category_overrides").notNull().default({}),
+    // Unpaid balance rolled forward from the previous month for this same flat
+    // (spec: outstanding amounts must not disappear when a new month is generated).
+    previousOutstanding: numeric("previous_outstanding", { precision: 12, scale: 2 }).notNull().default("0"),
     adjustmentAmount: numeric("adjustment_amount", { precision: 12, scale: 2 }).notNull().default("0"), // manual +/- adjustment (discount, arrears etc.)
     adjustmentNote: text("adjustment_note"),
     totalDue: numeric("total_due", { precision: 12, scale: 2 }).notNull().default("0"),
@@ -236,6 +239,29 @@ export const notifications = pgTable("notifications", {
   body: text("body"),
   kind: text("kind").notNull().default("info"), // info | due | payment | system
   read: boolean("read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const documentTypeEnum = pgEnum("document_type", ["photo", "nid_front", "nid_back", "agreement", "other"]);
+
+// Small tenant files (photo, NID, rental agreement) stored directly in Postgres as
+// base64 — this stack has no object storage configured, and these are small,
+// low-volume files, so a DB column is the pragmatic choice rather than adding a
+// paid third-party storage dependency. Kept to a hard size cap enforced in the
+// upload action, not here.
+export const tenantDocuments = pgTable("tenant_documents", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  tenantId: text("tenant_id")
+    .notNull()
+    .references(() => tenants.id, { onDelete: "cascade" }),
+  type: documentTypeEnum("type").notNull().default("other"),
+  filename: text("filename").notNull(),
+  mimeType: text("mime_type").notNull(),
+  sizeBytes: integer("size_bytes").notNull(),
+  dataBase64: text("data_base64").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

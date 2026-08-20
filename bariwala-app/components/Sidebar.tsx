@@ -12,7 +12,7 @@ export function Sidebar({ locale, orgName }: { locale: Locale; orgName: string }
   const t = (k: keyof typeof dictionaries.en) => dictionaries[locale][k];
 
   return (
-    <aside className="hidden w-60 shrink-0 flex-col border-r border-ink-900/10 bg-ink-950 md:flex">
+    <aside className="hidden w-60 shrink-0 flex-col border-r border-ink-900/10 bg-ink-950 md:flex print:hidden">
       <div className="flex items-center gap-2.5 px-5 py-6">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brass-500 font-display text-base font-bold text-ink-950">
           H

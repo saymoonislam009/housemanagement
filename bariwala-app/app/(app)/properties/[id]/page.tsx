@@ -4,6 +4,7 @@ import { PageHeader, Card, Field, Input, Button, EmptyState } from "@/components
 import { Modal } from "@/components/Modal";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { createFlat, updateFlat, deleteFlat } from "@/lib/actions/properties";
+import { createTenant } from "@/lib/actions/tenants";
 import { Icon, paths } from "@/components/icons";
 import { money } from "@/lib/format";
 import { notFound } from "next/navigation";
@@ -66,8 +67,38 @@ export default async function PropertyDetailPage({ params }: { params: { id: str
               <p className="tabular mt-3 text-lg font-semibold text-ink-900">{money(flat.rentAmount, org.currency)}</p>
               <p className="text-xs text-ink-600">{t("rent_amount")}</p>
 
-              {flat.tenants.find((tn) => tn.active) && (
-                <p className="mt-2 truncate text-sm text-ink-700">👤 {flat.tenants.find((tn) => tn.active)!.name}</p>
+              {flat.tenants.find((tn) => tn.active) ? (
+                <Link
+                  href={`/tenants/${flat.tenants.find((tn) => tn.active)!.id}`}
+                  className="mt-2 block truncate text-sm text-ink-700 hover:text-brass-600"
+                >
+                  👤 {flat.tenants.find((tn) => tn.active)!.name}
+                </Link>
+              ) : (
+                <Modal
+                  title={`Assign tenant — ${flat.name}`}
+                  trigger={
+                    <Button variant="subtle" className="mt-2 w-full !py-1.5 text-xs">
+                      + Assign tenant
+                    </Button>
+                  }
+                >
+                  <form action={createTenant} className="space-y-4">
+                    <input type="hidden" name="flatId" value={flat.id} />
+                    <p className="text-sm text-ink-600">
+                      {property.name} · {flat.name} ({flat.floor})
+                    </p>
+                    <Field label={t("tenant_name")}>
+                      <Input name="name" required autoFocus />
+                    </Field>
+                    <Field label={t("phone")}>
+                      <Input name="phone" type="tel" />
+                    </Field>
+                    <Button type="submit" className="w-full">
+                      {t("save")}
+                    </Button>
+                  </form>
+                </Modal>
               )}
 
               <div className="mt-4 flex items-center gap-2">

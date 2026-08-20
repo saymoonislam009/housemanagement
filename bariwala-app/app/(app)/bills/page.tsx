@@ -40,7 +40,17 @@ export default async function BillsPage({ searchParams }: { searchParams: { mont
       <PageHeader
         title={t("bills_title")}
         sub={t("bills_sub")}
-        action={<MonthSwitcher month={month} locale={org.language} />}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <a
+              href={`/api/export/monthly?month=${month}`}
+              className="inline-flex items-center gap-2 rounded-lg border border-ink-900/12 px-3 py-2 text-sm font-medium text-ink-800 hover:bg-ink-900/5"
+            >
+              Export CSV
+            </a>
+            <MonthSwitcher month={month} locale={org.language} />
+          </div>
+        }
       />
 
       <div className="mb-5 grid grid-cols-3 gap-3">
@@ -90,6 +100,12 @@ export default async function BillsPage({ searchParams }: { searchParams: { mont
                     <span className="text-xs text-ink-600">{t("rent")}</span>
                     <span className="tabular text-sm font-medium text-ink-900">{money(a.rentAmount, org.currency)}</span>
                   </div>
+                  {parseFloat(a.previousOutstanding) > 0 && (
+                    <div className="flex items-center justify-between bg-clay-500/5 px-2 py-1.5">
+                      <span className="text-xs text-clay-500">Previous outstanding</span>
+                      <span className="tabular text-sm font-medium text-clay-500">{money(a.previousOutstanding, org.currency)}</span>
+                    </div>
+                  )}
                   {(["electricity", "water", "gas", "other"] as const).map((cat) => (
                     <CategoryRow
                       key={cat}

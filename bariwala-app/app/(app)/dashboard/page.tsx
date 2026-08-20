@@ -39,6 +39,7 @@ export default async function DashboardPage() {
     { href: "/tenants", label: t("add_tenant"), icon: paths.users },
     { href: "/meters", label: t("record_reading"), icon: paths.gauge },
     { href: "/bills", label: t("record_payment"), icon: paths.wallet },
+    { href: "/expenses", label: t("add_expense"), icon: paths.chart },
   ];
 
   return (
@@ -97,7 +98,7 @@ export default async function DashboardPage() {
 
       <div className="mt-8">
         <h2 className="mb-3 text-sm font-semibold text-ink-800">{t("quick_actions")}</h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {quickActions.map((a) => (
             <Link
               key={a.label}

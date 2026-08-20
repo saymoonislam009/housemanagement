@@ -8,6 +8,7 @@ import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { deletePayment } from "@/lib/actions/billing";
 import { money, shortDate } from "@/lib/format";
 import { Icon, paths } from "@/components/icons";
+import Link from "next/link";
 
 const methodKey: Record<string, string> = {
   cash: "cash",
@@ -79,6 +80,13 @@ export default async function PaymentsPage({ searchParams }: { searchParams: { f
                       <td className="tabular px-4 py-3 text-right font-semibold text-okay">+{money(p.amount, org.currency)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
+                          <Link
+                            href={`/payments/${p.id}/receipt`}
+                            className="rounded-lg p-1.5 text-ink-600/50 hover:bg-ink-900/5"
+                            title="View receipt"
+                          >
+                            <Icon path={paths.wallet} className="h-4 w-4" />
+                          </Link>
                           <Modal
                             title={t("edit_payment")}
                             trigger={
@@ -122,6 +130,11 @@ export default async function PaymentsPage({ searchParams }: { searchParams: { f
                 <div className="mt-3 flex items-center gap-2">
                   <span className="text-xs text-ink-600">{t(methodKey[p.method] as any)}</span>
                   <div className="ml-auto flex items-center gap-1">
+                    <Link href={`/payments/${p.id}/receipt`}>
+                      <Button variant="ghost" className="!px-2.5 !py-1 text-xs">
+                        Receipt
+                      </Button>
+                    </Link>
                     <Modal
                       title={t("edit_payment")}
                       trigger={

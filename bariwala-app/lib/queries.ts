@@ -145,6 +145,7 @@ export async function getAdjustmentsForMonth(orgId: string, month: string) {
       billsAmount: monthlyAdjustments.billsAmount,
       billBreakdown: monthlyAdjustments.billBreakdown,
       categoryOverrides: monthlyAdjustments.categoryOverrides,
+      previousOutstanding: monthlyAdjustments.previousOutstanding,
       adjustmentAmount: monthlyAdjustments.adjustmentAmount,
       adjustmentNote: monthlyAdjustments.adjustmentNote,
       totalDue: monthlyAdjustments.totalDue,
@@ -240,6 +241,42 @@ export async function getYearSummary(orgId: string, year: string) {
   return Array.from(byMonth.entries())
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([month, v]) => ({ month, expected: v.expected, collected: v.collected, outstanding: Math.max(0, v.expected - v.collected) }));
+}
+
+export async function getTenantDocuments(tenantId: string) {
+  return db.query.tenantDocuments.findMany({
+    where: (d, { eq }) => eq(d.tenantId, tenantId),
+    columns: { id: true, type: true, filename: true, mimeType: true, sizeBytes: true, createdAt: true },
+    orderBy: (d, { desc }) => desc(d.createdAt),
+  });
+}
+
+export async function getAdjustmentForFlatMonth(orgId: string, flatId: string, month: string) {
+  const rows = await db
+    .select({
+      id: monthlyAdjustments.id,
+      flatId: monthlyAdjustments.flatId,
+      month: monthlyAdjustments.month,
+      rentAmount: monthlyAdjustments.rentAmount,
+      billsAmount: monthlyAdjustments.billsAmount,
+      billBreakdown: monthlyAdjustments.billBreakdown,
+      categoryOverrides: monthlyAdjustments.categoryOverrides,
+      previousOutstanding: monthlyAdjustments.previousOutstanding,
+      adjustmentAmount: monthlyAdjustments.adjustmentAmount,
+      adjustmentNote: monthlyAdjustments.adjustmentNote,
+      totalDue: monthlyAdjustments.totalDue,
+      totalPaid: monthlyAdjustments.totalPaid,
+      status: monthlyAdjustments.status,
+      flatName: flats.name,
+      floor: flats.floor,
+      propertyName: properties.name,
+    })
+    .from(monthlyAdjustments)
+    .innerJoin(flats, eq(flats.id, monthlyAdjustments.flatId))
+    .innerJoin(properties, eq(properties.id, flats.propertyId))
+    .where(and(eq(monthlyAdjustments.orgId, orgId), eq(monthlyAdjustments.flatId, flatId), eq(monthlyAdjustments.month, month)))
+    .limit(1);
+  return rows[0] ?? null;
 }
 
 export async function getPaymentsForOrg(orgId: string, flatId?: string) {
