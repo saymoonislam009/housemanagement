@@ -2,6 +2,7 @@ import { getOrgContext, getPropertiesWithFlats } from "@/lib/queries";
 import { getDict } from "@/lib/i18n";
 import { PageHeader, Card, Field, Input, Button } from "@/components/ui";
 import { Modal } from "@/components/Modal";
+import { CloseOnSuccess } from "@/components/CloseOnSuccess";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { createProperty, deleteProperty } from "@/lib/actions/properties";
 import { Icon, paths } from "@/components/icons";
@@ -54,6 +55,7 @@ export default async function PropertiesPage() {
               <Button type="submit" className="w-full">
                 {t("save")}
               </Button>
+              <CloseOnSuccess />
             </form>
           </Modal>
         }

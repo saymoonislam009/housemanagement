@@ -1,13 +1,14 @@
 import { ReactNode } from "react";
 import { getDict, getLocale } from "@/lib/i18n";
 import { setLanguage } from "@/lib/actions/settings";
+import { BrandMark } from "./BrandMark";
 
 export function AuthShell({ children }: { children: ReactNode }) {
   const locale = getLocale();
   const t = getDict(locale);
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-ink-950 px-4 py-10">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-brandDark px-4 py-10">
       {/* Meter-dial signature motif, ambient */}
       <svg
         className="pointer-events-none absolute -right-32 -top-32 h-[520px] w-[520px] opacity-[0.08] sm:-right-20 sm:-top-20"
@@ -35,9 +36,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
 
       <div className="relative w-full max-w-sm">
         <div className="mb-8 flex items-center justify-center gap-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brass-500 font-display text-lg font-bold text-ink-950">
-            H
-          </div>
+          <BrandMark className="h-10 w-10" />
           <span className="font-display text-xl font-semibold text-paper-50">{t("app_name")}</span>
         </div>
         <div className="card p-6 sm:p-8">{children}</div>

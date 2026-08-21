@@ -21,7 +21,7 @@ export function BottomNav({ locale }: { locale: Locale }) {
     <>
       {moreOpen && (
         <div
-          className="fixed inset-0 z-40 bg-ink-950/50 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-40 bg-brandDark/50 backdrop-blur-sm md:hidden"
           onClick={() => setMoreOpen(false)}
         >
           <div

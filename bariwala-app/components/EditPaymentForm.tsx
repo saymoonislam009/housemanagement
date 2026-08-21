@@ -2,6 +2,7 @@
 
 import { Field, Input, Select, Button } from "./ui";
 import { updatePayment } from "@/lib/actions/billing";
+import { CloseOnSuccess } from "./CloseOnSuccess";
 
 export function EditPaymentForm({
   paymentId,
@@ -41,6 +42,7 @@ export function EditPaymentForm({
       <Button type="submit" className="w-full">
         {labels.save}
       </Button>
+      <CloseOnSuccess />
     </form>
   );
 }

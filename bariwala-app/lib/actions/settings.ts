@@ -7,6 +7,7 @@ import { requireOrg, str } from "./helpers";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { LOCALE_COOKIE } from "@/lib/i18n";
+import { THEME_COOKIE } from "@/lib/theme";
 
 export async function setLanguage(lang: "en" | "bn") {
   cookies().set(LOCALE_COOKIE, lang, {
@@ -17,6 +18,24 @@ export async function setLanguage(lang: "en" | "bn") {
   const session = await requireOrg().catch(() => null);
   if (session) {
     await db.update(organizations).set({ language: lang }).where(eq(organizations.id, session.orgId));
+  }
+  revalidatePath("/", "layout");
+}
+
+export async function setTheme(theme: "light" | "dark") {
+  cookies().set(THEME_COOKIE, theme, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
+  const session = await requireOrg().catch(() => null);
+  if (session) {
+    const org = await db.query.organizations.findFirst({ where: eq(organizations.id, session.orgId) });
+    const currentSettings = (org?.settings as Record<string, unknown>) ?? {};
+    await db
+      .update(organizations)
+      .set({ settings: { ...currentSettings, theme } })
+      .where(eq(organizations.id, session.orgId));
   }
   revalidatePath("/", "layout");
 }

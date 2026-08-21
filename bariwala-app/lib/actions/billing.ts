@@ -52,9 +52,7 @@ export async function recalcAllFlatsForSharedMeter(propertyId: string, month: st
   const activeFlats = await db.query.flats.findMany({
     where: and(eq(flats.propertyId, propertyId), eq(flats.active, true)),
   });
-  for (const f of activeFlats) {
-    await recalcAdjustmentForFlatMonth(f.id, month);
-  }
+  await Promise.all(activeFlats.map((f) => recalcAdjustmentForFlatMonth(f.id, month)));
 }
 
 // Recalculates a flat's monthly bill: pulls meter-computed totals per utility category,
@@ -152,7 +150,10 @@ export async function recalcAdjustmentForFlatMonth(flatId: string, month: string
   }
 }
 
-// Makes sure every active flat has a bill row for the given month.
+// Makes sure every active flat has a bill row for the given month. Runs on every
+// visit to Bills/Dashboard/History, so recalculating flats one-by-one added real,
+// felt latency for houses with several flats — these are independent per-flat
+// writes, so there's no race risk in running them concurrently.
 export async function ensureAdjustmentsForMonth(orgId: string, month: string) {
   const rows = await db
     .select({ id: flats.id, active: flats.active })
@@ -160,9 +161,7 @@ export async function ensureAdjustmentsForMonth(orgId: string, month: string) {
     .innerJoin(properties, eq(properties.id, flats.propertyId))
     .where(and(eq(properties.orgId, orgId), eq(flats.active, true)));
 
-  for (const flat of rows) {
-    await recalcAdjustmentForFlatMonth(flat.id, month);
-  }
+  await Promise.all(rows.map((flat) => recalcAdjustmentForFlatMonth(flat.id, month)));
 }
 
 // Owner types in (or overrides) one utility category directly — e.g. no gas meter

@@ -2,6 +2,7 @@ import { getOrgContext, getTenantsForOrg, getFlatsForOrg } from "@/lib/queries";
 import { getDict } from "@/lib/i18n";
 import { PageHeader, Field, Input, Select, Button, EmptyState } from "@/components/ui";
 import { Modal } from "@/components/Modal";
+import { CloseOnSuccess } from "@/components/CloseOnSuccess";
 import { TenantSearchList } from "@/components/TenantSearchList";
 import { createTenant } from "@/lib/actions/tenants";
 
@@ -55,6 +56,7 @@ export default async function TenantsPage() {
               <Button type="submit" className="w-full">
                 {t("save")}
               </Button>
+              <CloseOnSuccess />
             </form>
           </Modal>
         }

@@ -2,6 +2,7 @@ import { getOrgContext, getExpensesForOrg, getPropertiesWithFlats } from "@/lib/
 import { getDict } from "@/lib/i18n";
 import { PageHeader, Card, Field, Input, Select, Textarea, Button, EmptyState } from "@/components/ui";
 import { Modal } from "@/components/Modal";
+import { CloseOnSuccess } from "@/components/CloseOnSuccess";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { createExpense, deleteExpense } from "@/lib/actions/expenses";
 import { money, shortDate } from "@/lib/format";
@@ -47,6 +48,7 @@ export default async function ExpensesPage() {
               <Button type="submit" className="w-full">
                 {t("save")}
               </Button>
+              <CloseOnSuccess />
             </form>
           </Modal>
         }

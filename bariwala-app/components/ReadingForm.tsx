@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Field, Input, Button } from "./ui";
 import { recordReading } from "@/lib/actions/meters";
 import { money } from "@/lib/format";
+import { CloseOnSuccess } from "./CloseOnSuccess";
 
 export function ReadingForm({
   meterId,
@@ -96,6 +97,7 @@ export function ReadingForm({
       <Button type="submit" className="w-full">
         {labels.save}
       </Button>
+      <CloseOnSuccess />
     </form>
   );
 }

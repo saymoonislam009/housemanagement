@@ -3,11 +3,13 @@ import { ensureAdjustmentsForMonth, setManualAdjustment } from "@/lib/actions/bi
 import { getDict } from "@/lib/i18n";
 import { PageHeader, Card, Field, Input, Button, StatusPill, EmptyState } from "@/components/ui";
 import { Modal } from "@/components/Modal";
+import { CloseOnSuccess } from "@/components/CloseOnSuccess";
 import { MonthSwitcher } from "@/components/MonthSwitcher";
 import { PaymentForm } from "@/components/PaymentForm";
 import { CategoryRow } from "@/components/CategoryRow";
 import { money, firstOfMonth } from "@/lib/format";
 import { Icon, paths } from "@/components/icons";
+import Link from "next/link";
 
 export default async function BillsPage({ searchParams }: { searchParams: { month?: string } }) {
   const { org } = await getOrgContext();
@@ -48,6 +50,12 @@ export default async function BillsPage({ searchParams }: { searchParams: { mont
             >
               Export CSV
             </a>
+            <Link
+              href={`/bills/print?month=${month}`}
+              className="inline-flex items-center gap-2 rounded-lg border border-ink-900/12 px-3 py-2 text-sm font-medium text-ink-800 hover:bg-ink-900/5"
+            >
+              Print / PDF
+            </Link>
             <MonthSwitcher month={month} locale={org.language} />
           </div>
         }
@@ -144,6 +152,15 @@ export default async function BillsPage({ searchParams }: { searchParams: { mont
                       </span>
                     </p>
                   </div>
+                  {tenant && (
+                    <Link
+                      href={`/tenants/${tenant.id}/statement?month=${month}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-ink-900/12 px-3 py-1.5 text-xs font-medium text-ink-800 hover:bg-ink-900/5"
+                    >
+                      <Icon path={paths.receipt} className="h-3.5 w-3.5" />
+                      Print / Send Bill
+                    </Link>
+                  )}
                   <Modal
                     title={t("discount_or_extra")}
                     trigger={
@@ -163,6 +180,7 @@ export default async function BillsPage({ searchParams }: { searchParams: { mont
                       <Button type="submit" className="w-full">
                         {t("save")}
                       </Button>
+                      <CloseOnSuccess />
                     </form>
                   </Modal>
                   <Modal

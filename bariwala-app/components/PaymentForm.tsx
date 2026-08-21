@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Field, Input, Select, Button } from "./ui";
 import { recordPayment } from "@/lib/actions/billing";
+import { CloseOnSuccess } from "./CloseOnSuccess";
 
 export function PaymentForm({
   flatId,
@@ -54,6 +55,7 @@ export function PaymentForm({
       <Button type="submit" className="w-full">
         {labels.save}
       </Button>
+      <CloseOnSuccess />
     </form>
   );
 }

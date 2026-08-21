@@ -2,6 +2,7 @@ import { getOrgContext, getMetersForOrg, getPropertiesWithFlats, getPreviousRead
 import { getDict } from "@/lib/i18n";
 import { PageHeader, Card, Field, Input, Select, Button, EmptyState, StatusPill } from "@/components/ui";
 import { Modal } from "@/components/Modal";
+import { CloseOnSuccess } from "@/components/CloseOnSuccess";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { createMeter, updateMeter, deleteMeter, deleteReading } from "@/lib/actions/meters";
 import { ReadingForm } from "@/components/ReadingForm";
@@ -105,6 +106,7 @@ export default async function MetersPage() {
               <Button type="submit" className="w-full">
                 {t("save")}
               </Button>
+              <CloseOnSuccess />
             </form>
           </Modal>
         }
@@ -182,6 +184,7 @@ export default async function MetersPage() {
                       <Button type="submit" className="w-full">
                         {t("save")}
                       </Button>
+                      <CloseOnSuccess />
                     </form>
                   </Modal>
                   <ConfirmDeleteButton action={deleteMeter.bind(null, m.id)} confirmText={t("confirm_delete")} />

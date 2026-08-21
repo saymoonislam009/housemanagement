@@ -2,6 +2,7 @@ import { getOrgContext, getProperty } from "@/lib/queries";
 import { getDict } from "@/lib/i18n";
 import { PageHeader, Card, Field, Input, Button, EmptyState } from "@/components/ui";
 import { Modal } from "@/components/Modal";
+import { CloseOnSuccess } from "@/components/CloseOnSuccess";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { createFlat, updateFlat, deleteFlat } from "@/lib/actions/properties";
 import { createTenant } from "@/lib/actions/tenants";
@@ -40,6 +41,7 @@ export default async function PropertyDetailPage({ params }: { params: { id: str
               <Button type="submit" className="w-full">
                 {t("save")}
               </Button>
+              <CloseOnSuccess />
             </form>
           </Modal>
         }
@@ -97,6 +99,7 @@ export default async function PropertyDetailPage({ params }: { params: { id: str
                     <Button type="submit" className="w-full">
                       {t("save")}
                     </Button>
+                    <CloseOnSuccess />
                   </form>
                 </Modal>
               )}
@@ -127,6 +130,7 @@ export default async function PropertyDetailPage({ params }: { params: { id: str
                     <Button type="submit" className="w-full">
                       {t("save")}
                     </Button>
+                    <CloseOnSuccess />
                   </form>
                 </Modal>
                 <ConfirmDeleteButton

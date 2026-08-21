@@ -1,17 +1,21 @@
 import { getOrgContext } from "@/lib/queries";
 import { getDict } from "@/lib/i18n";
 import { PageHeader, Card, Field, Input, Select, Button } from "@/components/ui";
-import { updateOrgSettings, updateBillingDefaults, setLanguage } from "@/lib/actions/settings";
+import { updateOrgSettings, updateBillingDefaults, setLanguage, setTheme } from "@/lib/actions/settings";
+import { getTheme } from "@/lib/theme";
+import { InstallApp } from "@/components/InstallApp";
 
 export default async function SettingsPage() {
   const { org, session } = await getOrgContext();
   const t = getDict();
+  const theme = getTheme();
 
   return (
     <div>
       <PageHeader title={t("settings_title")} sub={t("settings_sub")} />
 
       <div className="grid gap-4 lg:grid-cols-2">
+        <InstallApp />
         <Card>
           <h2 className="mb-4 text-sm font-semibold text-ink-800">{t("profile")}</h2>
           <form action={updateOrgSettings} className="space-y-4">
@@ -51,6 +55,23 @@ export default async function SettingsPage() {
                 বাংলা
               </Button>
             </form>
+          </div>
+
+          <div className="mt-8 border-t border-ink-900/8 pt-5">
+            <h3 className="mb-3 text-sm font-semibold text-ink-800">Appearance</h3>
+            <p className="mb-4 text-sm text-ink-600">Currently: {theme === "dark" ? "Dark" : "Light"}</p>
+            <div className="flex gap-2">
+              <form action={async () => { "use server"; await setTheme("light"); }}>
+                <Button variant={theme === "light" ? "primary" : "ghost"} type="submit">
+                  ☀️ Light
+                </Button>
+              </form>
+              <form action={async () => { "use server"; await setTheme("dark"); }}>
+                <Button variant={theme === "dark" ? "primary" : "ghost"} type="submit">
+                  🌙 Dark
+                </Button>
+              </form>
+            </div>
           </div>
 
           <div className="mt-8 border-t border-ink-900/8 pt-5">

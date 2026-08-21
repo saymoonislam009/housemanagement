@@ -1,4 +1,5 @@
 import { Icon, paths } from "./icons";
+import { InstallApp } from "./InstallApp";
 import { getDict, type Locale } from "@/lib/i18n";
 import { setLanguage, markAllNotificationsRead, markNotificationRead } from "@/lib/actions/settings";
 import { logoutAction } from "@/lib/actions/auth";
@@ -23,6 +24,8 @@ export function TopBar({
       <p className="truncate font-display text-base font-medium text-ink-900 md:text-lg">{title}</p>
 
       <div className="flex shrink-0 items-center gap-1.5">
+        <InstallApp variant="button" />
+
         {/* Language switcher */}
         <form action={async () => { "use server"; await setLanguage(locale === "en" ? "bn" : "en"); }}>
           <button

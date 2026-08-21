@@ -3,6 +3,7 @@
 import { useFormState, useFormStatus } from "react-dom";
 import { uploadTenantDocument } from "@/lib/actions/documents";
 import { Field, Select, Button } from "./ui";
+import { CloseOnSuccess } from "./CloseOnSuccess";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -39,6 +40,7 @@ export function DocumentUploadForm({ tenantId }: { tenantId: string }) {
       </Field>
       {state?.error && <p className="text-sm text-clay-500">{state.error}</p>}
       <SubmitButton />
+      <CloseOnSuccess skip={!!state?.error} />
     </form>
   );
 }

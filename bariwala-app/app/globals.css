@@ -6,6 +6,39 @@
   --font-display: var(--font-fraunces);
   --font-body: var(--font-inter), var(--font-bengali);
   --font-mono: var(--font-plexmono);
+
+  /* Light theme (default) — matches the original design exactly. */
+  --ink-950: 14 21 18;
+  --ink-900: 19 29 24;
+  --ink-800: 27 42 34;
+  --ink-700: 37 57 47;
+  --ink-600: 51 81 63;
+  --brass-400: 232 199 126;
+  --brass-500: 212 169 79;
+  --brass-600: 184 134 47;
+  --paper-50: 251 248 241;
+  --paper-100: 244 238 224;
+  --clay-500: 193 95 60;
+  --okay: 92 138 102;
+}
+
+.dark {
+  /* Dark theme — "ink" becomes light (it's used for text/borders that must read
+     against a dark background) and "paper" becomes genuinely dark (it's used for
+     page/card backgrounds). Brass/clay/okay stay recognizably the same accent,
+     nudged slightly for contrast on a dark surface. */
+  --ink-950: 245 242 233;
+  --ink-900: 227 221 205;
+  --ink-800: 199 192 174;
+  --ink-700: 168 161 145;
+  --ink-600: 138 132 118;
+  --brass-400: 236 206 141;
+  --brass-500: 216 175 92;
+  --brass-600: 196 150 68;
+  --paper-50: 27 39 32;
+  --paper-100: 16 24 20;
+  --clay-500: 214 122 92;
+  --okay: 111 163 122;
 }
 
 * {

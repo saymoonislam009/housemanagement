@@ -1,32 +1,34 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
+        brandDark: "#0E1512",
         ink: {
-          950: "#0E1512",
-          900: "#131D18",
-          800: "#1B2A22",
-          700: "#25392F",
-          600: "#33513F",
+          950: "rgb(var(--ink-950) / <alpha-value>)",
+          900: "rgb(var(--ink-900) / <alpha-value>)",
+          800: "rgb(var(--ink-800) / <alpha-value>)",
+          700: "rgb(var(--ink-700) / <alpha-value>)",
+          600: "rgb(var(--ink-600) / <alpha-value>)",
         },
         brass: {
-          400: "#E8C77E",
-          500: "#D4A94F",
-          600: "#B8862F",
+          400: "rgb(var(--brass-400) / <alpha-value>)",
+          500: "rgb(var(--brass-500) / <alpha-value>)",
+          600: "rgb(var(--brass-600) / <alpha-value>)",
         },
         paper: {
-          50: "#FBF8F1",
-          100: "#F4EEE0",
+          50: "rgb(var(--paper-50) / <alpha-value>)",
+          100: "rgb(var(--paper-100) / <alpha-value>)",
         },
         clay: {
-          500: "#C15F3C",
+          500: "rgb(var(--clay-500) / <alpha-value>)",
         },
-        okay: "#5C8A66",
-        warn: "#D4A94F",
-        bad: "#C15F3C",
+        okay: "rgb(var(--okay) / <alpha-value>)",
+        warn: "rgb(var(--brass-500) / <alpha-value>)",
+        bad: "rgb(var(--clay-500) / <alpha-value>)",
       },
       fontFamily: {
         display: ["var(--font-display)", "serif"],
