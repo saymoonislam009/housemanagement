@@ -1,15 +1,20 @@
 import { getOrgContext, getTenantsForOrg, getFlatsForOrg } from "@/lib/queries";
 import { getDict } from "@/lib/i18n";
-import { PageHeader, Field, Input, Select, Button, EmptyState } from "@/components/ui";
+import { PageHeader, Button, EmptyState } from "@/components/ui";
 import { Modal } from "@/components/Modal";
-import { CloseOnSuccess } from "@/components/CloseOnSuccess";
 import { TenantSearchList } from "@/components/TenantSearchList";
-import { createTenant } from "@/lib/actions/tenants";
+import { CreateTenantForm } from "@/components/CreateTenantForm";
 
 export default async function TenantsPage() {
   const { org } = await getOrgContext();
   const t = getDict();
   const [tenantsList, flatsList] = await Promise.all([getTenantsForOrg(org.id), getFlatsForOrg(org.id)]);
+
+  // Only offer flats that don't already have someone living there — a flat can only
+  // have one active tenant at a time (also enforced server-side, this just keeps the
+  // owner from picking a wrong option in the first place).
+  const occupiedFlatIds = new Set(tenantsList.filter((tn) => tn.active).map((tn) => tn.flatId));
+  const vacantFlats = flatsList.filter((f) => !occupiedFlatIds.has(f.id));
 
   return (
     <div>
@@ -18,46 +23,19 @@ export default async function TenantsPage() {
         sub={t("tenants_sub")}
         action={
           <Modal title={t("add_tenant")} trigger={<Button variant="primary">{t("add_tenant_cta")}</Button>}>
-            <form action={createTenant} className="space-y-4">
-              <Field label={t("select_flat")}>
-                <Select name="flatId" required defaultValue="">
-                  <option value="" disabled>
-                    {t("select_flat")}
-                  </option>
-                  {flatsList.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.propertyName} · {f.name} ({f.floor})
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label={t("tenant_name")}>
-                <Input name="name" required autoFocus />
-              </Field>
-              <details className="rounded-lg border border-ink-900/10 p-3">
-                <summary className="cursor-pointer text-xs font-medium text-ink-700">
-                  {t("additional_information")}
-                </summary>
-                <div className="mt-3 space-y-4">
-                  <Field label={t("phone")}>
-                    <Input name="phone" type="tel" />
-                  </Field>
-                  <Field label={t("email")}>
-                    <Input name="email" type="email" />
-                  </Field>
-                  <Field label={t("nid")}>
-                    <Input name="nid" />
-                  </Field>
-                  <Field label={t("move_in_date")}>
-                    <Input name="moveInDate" type="date" />
-                  </Field>
-                </div>
-              </details>
-              <Button type="submit" className="w-full">
-                {t("save")}
-              </Button>
-              <CloseOnSuccess />
-            </form>
+            <CreateTenantForm
+              flats={vacantFlats}
+              labels={{
+                selectFlat: t("select_flat"),
+                tenantName: t("tenant_name"),
+                phone: t("phone"),
+                email: t("email"),
+                nid: t("nid"),
+                moveInDate: t("move_in_date"),
+                additional: t("additional_information"),
+                save: t("save"),
+              }}
+            />
           </Modal>
         }
       />

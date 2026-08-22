@@ -3,7 +3,7 @@ import { InstallApp } from "./InstallApp";
 import { getDict, type Locale } from "@/lib/i18n";
 import { setLanguage, markAllNotificationsRead, markNotificationRead } from "@/lib/actions/settings";
 import { logoutAction } from "@/lib/actions/auth";
-import { shortDate } from "@/lib/format";
+import { shortDate, timeAgo } from "@/lib/format";
 
 export function TopBar({
   locale,
@@ -12,7 +12,7 @@ export function TopBar({
   title,
 }: {
   locale: Locale;
-  notifications: { id: string; title: string; body: string | null; read: boolean; createdAt: Date }[];
+  notifications: { id: string; title: string; body: string | null; read: boolean; createdAt: Date; kind: string }[];
   unreadCount: number;
   title?: string;
 }) {
@@ -63,21 +63,38 @@ export function TopBar({
               {notifications.length === 0 ? (
                 <p className="px-4 py-8 text-center text-sm text-ink-600">{t("no_notifications")}</p>
               ) : (
-                notifications.map((n) => (
-                  <form
-                    key={n.id}
-                    action={markNotificationRead.bind(null, n.id)}
-                    className={`block w-full border-b border-ink-900/5 px-4 py-3 text-left last:border-0 ${
-                      n.read ? "opacity-60" : "bg-brass-400/5"
-                    }`}
-                  >
-                    <button type="submit" className="w-full text-left">
-                      <p className="text-sm font-medium text-ink-900">{n.title}</p>
-                      {n.body && <p className="mt-0.5 text-xs text-ink-600">{n.body}</p>}
-                      <p className="mt-1 text-[11px] text-ink-600/60">{shortDate(n.createdAt, dLocale)}</p>
-                    </button>
-                  </form>
-                ))
+                notifications.map((n) => {
+                  const kindStyle: Record<string, { icon: string; color: string }> = {
+                    payment: { icon: paths.wallet, color: "text-okay bg-okay/10" },
+                    due: { icon: paths.receipt, color: "text-clay-500 bg-clay-500/10" },
+                    system: { icon: paths.building, color: "text-brass-600 bg-brass-400/15" },
+                    info: { icon: paths.bell, color: "text-ink-600 bg-ink-900/8" },
+                  };
+                  const style = kindStyle[n.kind] ?? kindStyle.info;
+                  return (
+                    <form
+                      key={n.id}
+                      action={markNotificationRead.bind(null, n.id)}
+                      className={`block w-full border-b border-ink-900/5 px-4 py-3 text-left last:border-0 ${
+                        n.read ? "opacity-60" : "bg-brass-400/5"
+                      }`}
+                    >
+                      <button type="submit" className="flex w-full items-start gap-3 text-left">
+                        <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${style.color}`}>
+                          <Icon path={style.icon} className="h-3.5 w-3.5" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-1.5">
+                            <span className="text-sm font-medium text-ink-900">{n.title}</span>
+                            {!n.read && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brass-600" />}
+                          </span>
+                          {n.body && <span className="mt-0.5 block text-xs text-ink-600">{n.body}</span>}
+                          <span className="mt-1 block text-[11px] text-ink-600/60">{timeAgo(n.createdAt, dLocale)}</span>
+                        </span>
+                      </button>
+                    </form>
+                  );
+                })
               )}
             </div>
           </div>

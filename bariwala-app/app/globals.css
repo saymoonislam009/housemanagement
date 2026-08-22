@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: light;
   --font-display: var(--font-fraunces);
   --font-body: var(--font-inter), var(--font-bengali);
   --font-mono: var(--font-plexmono);
@@ -23,6 +24,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   /* Dark theme — "ink" becomes light (it's used for text/borders that must read
      against a dark background) and "paper" becomes genuinely dark (it's used for
      page/card backgrounds). Brass/clay/okay stay recognizably the same accent,

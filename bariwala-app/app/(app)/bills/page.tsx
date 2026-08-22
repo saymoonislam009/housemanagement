@@ -44,24 +44,28 @@ export default async function BillsPage({ searchParams }: { searchParams: { mont
         title={t("bills_title")}
         sub={t("bills_sub")}
         action={
-          <div className="flex flex-wrap items-center gap-2">
-            <a
-              href={`/api/export/monthly?month=${month}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg border border-ink-900/12 px-3 py-2 text-sm font-medium text-ink-800 hover:bg-ink-900/5"
-            >
-              Export CSV
-            </a>
-            <Link
-              href={`/bills/print?month=${month}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg border border-ink-900/12 px-3 py-2 text-sm font-medium text-ink-800 hover:bg-ink-900/5"
-            >
-              Print / PDF
-            </Link>
-            <MonthSwitcher month={month} locale={org.language} />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="order-2 flex gap-2 sm:order-1">
+              <a
+                href={`/api/export/monthly?month=${month}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-ink-900/12 px-3 py-2 text-sm font-medium text-ink-800 hover:bg-ink-900/5 sm:flex-none"
+              >
+                Export CSV
+              </a>
+              <Link
+                href={`/bills/print?month=${month}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-ink-900/12 px-3 py-2 text-sm font-medium text-ink-800 hover:bg-ink-900/5 sm:flex-none"
+              >
+                Print / PDF
+              </Link>
+            </div>
+            <div className="order-1 sm:order-2">
+              <MonthSwitcher month={month} locale={org.language} />
+            </div>
           </div>
         }
       />

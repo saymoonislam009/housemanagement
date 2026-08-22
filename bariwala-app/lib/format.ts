@@ -18,6 +18,19 @@ export function shortDate(dateStr: string | Date, locale = "en-US") {
   return new Intl.DateTimeFormat(locale, { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" }).format(d);
 }
 
+export function timeAgo(date: Date | string, locale = "en-US") {
+  const d = typeof date === "string" ? new Date(date) : date;
+  const seconds = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (seconds < 60) return locale.startsWith("bn") ? "এইমাত্র" : "Just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return locale.startsWith("bn") ? `${minutes} মিনিট আগে` : `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return locale.startsWith("bn") ? `${hours} ঘণ্টা আগে` : `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return locale.startsWith("bn") ? `${days} দিন আগে` : `${days}d ago`;
+  return shortDate(d, locale);
+}
+
 export function firstOfMonth(date = new Date()) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1)).toISOString().slice(0, 10);
 }

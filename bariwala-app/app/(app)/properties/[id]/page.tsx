@@ -5,7 +5,7 @@ import { Modal } from "@/components/Modal";
 import { CloseOnSuccess } from "@/components/CloseOnSuccess";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { createFlat, updateFlat, deleteFlat } from "@/lib/actions/properties";
-import { createTenant } from "@/lib/actions/tenants";
+import { CreateTenantForm } from "@/components/CreateTenantForm";
 import { Icon, paths } from "@/components/icons";
 import { money } from "@/lib/format";
 import { notFound } from "next/navigation";
@@ -88,22 +88,20 @@ export default async function PropertyDetailPage({ params }: { params: { id: str
                     </Button>
                   }
                 >
-                  <form action={createTenant} className="space-y-4">
-                    <input type="hidden" name="flatId" value={flat.id} />
-                    <p className="text-sm text-ink-600">
-                      {property.name} · {flat.name} ({flat.floor})
-                    </p>
-                    <Field label={t("tenant_name")}>
-                      <Input name="name" required autoFocus />
-                    </Field>
-                    <Field label={t("phone")}>
-                      <Input name="phone" type="tel" />
-                    </Field>
-                    <Button type="submit" className="w-full">
-                      {t("save")}
-                    </Button>
-                    <CloseOnSuccess />
-                  </form>
+                  <CreateTenantForm
+                    fixedFlatId={flat.id}
+                    fixedFlatLabel={`${property.name} · ${flat.name} (${flat.floor})`}
+                    labels={{
+                      selectFlat: t("select_flat"),
+                      tenantName: t("tenant_name"),
+                      phone: t("phone"),
+                      email: t("email"),
+                      nid: t("nid"),
+                      moveInDate: t("move_in_date"),
+                      additional: t("additional_information"),
+                      save: t("save"),
+                    }}
+                  />
                 </Modal>
               )}
 
