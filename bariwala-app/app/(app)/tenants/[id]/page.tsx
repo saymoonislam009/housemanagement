@@ -97,6 +97,8 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
           <p className="tabular font-display text-2xl font-semibold text-ink-950">{money(tenant.rentAmount, org.currency)}</p>
           <Link
             href={`/tenants/${tenant.id}/statement`}
+            target="_blank"
+            rel="noopener noreferrer"
             className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-brass-600 hover:underline"
           >
             <Icon path={paths.receipt} className="h-3.5 w-3.5" />

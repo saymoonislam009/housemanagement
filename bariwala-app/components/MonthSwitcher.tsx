@@ -2,12 +2,13 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Icon, paths } from "./icons";
-import { monthLabel, monthOffset } from "@/lib/format";
+import { monthLabel, monthOffset, firstOfMonth } from "@/lib/format";
 
 export function MonthSwitcher({ month, locale }: { month: string; locale: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dLocale = locale === "bn" ? "bn-BD" : "en-US";
+  const isAtCurrentMonth = month >= firstOfMonth();
 
   function go(m: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -21,7 +22,13 @@ export function MonthSwitcher({ month, locale }: { month: string; locale: string
         <Icon path={paths.arrowRight} className="h-4 w-4 rotate-180" />
       </button>
       <span className="min-w-[9rem] text-center text-sm font-medium text-ink-900">{monthLabel(month, dLocale)}</span>
-      <button onClick={() => go(monthOffset(month, 1))} className="rounded-md p-1.5 hover:bg-ink-900/5" aria-label="Next month">
+      <button
+        onClick={() => go(monthOffset(month, 1))}
+        disabled={isAtCurrentMonth}
+        className="rounded-md p-1.5 hover:bg-ink-900/5 disabled:opacity-30 disabled:pointer-events-none"
+        aria-label="Next month"
+        title={isAtCurrentMonth ? "Future months aren't available yet" : undefined}
+      >
         <Icon path={paths.arrowRight} className="h-4 w-4" />
       </button>
     </div>

@@ -40,6 +40,7 @@ export default async function DashboardPage() {
     { href: "/meters", label: t("record_reading"), icon: paths.gauge },
     { href: "/bills", label: t("record_payment"), icon: paths.wallet },
     { href: "/expenses", label: t("add_expense"), icon: paths.chart },
+    { href: "/notes", label: "Add note", icon: paths.receipt },
   ];
 
   return (

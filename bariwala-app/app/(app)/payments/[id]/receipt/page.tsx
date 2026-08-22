@@ -1,8 +1,8 @@
 import { getOrgContext } from "@/lib/queries";
 import { assertOrgOwnsPayment } from "@/lib/actions/helpers";
 import { db } from "@/db";
-import { flats, properties, tenants } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { flats, properties, tenants, payments as paymentsTable } from "@/db/schema";
+import { eq, and, lte, asc } from "drizzle-orm";
 import { PrintButton } from "@/components/PrintButton";
 import { money, shortDate, monthLabel } from "@/lib/format";
 import Link from "next/link";
@@ -33,7 +33,21 @@ export default async function ReceiptPage({ params }: { params: { id: string } }
     : null;
   if (adj) {
     previousDue = parseFloat(adj.previousOutstanding);
-    remaining = Math.max(0, parseFloat(adj.totalDue) - parseFloat(adj.totalPaid));
+
+    // "Remaining due" on a receipt must reflect the balance right after THIS payment,
+    // not whatever the bill's live total-paid happens to be today (which includes
+    // every payment ever made against it, including ones made later). Order payments
+    // chronologically and sum everything up to and including this one.
+    const allPaymentsForBill = await db.query.payments.findMany({
+      where: eq(paymentsTable.adjustmentId, adj.id),
+      orderBy: [asc(paymentsTable.paidOn), asc(paymentsTable.createdAt)],
+    });
+    let cumulativePaid = 0;
+    for (const p of allPaymentsForBill) {
+      cumulativePaid += parseFloat(p.amount);
+      if (p.id === payment.id) break;
+    }
+    remaining = Math.max(0, parseFloat(adj.totalDue) - cumulativePaid);
   }
 
   return (

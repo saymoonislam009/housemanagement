@@ -5,6 +5,8 @@ import { properties, flats } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { id } from "@/lib/id";
 import { requireOrg, str, num, assertOrgOwnsProperty, assertOrgOwnsFlat } from "./helpers";
+import { recalcAdjustmentForFlatMonth } from "./billing";
+import { firstOfMonth } from "@/lib/format";
 import { revalidatePath } from "next/cache";
 
 export async function createProperty(formData: FormData) {
@@ -40,6 +42,7 @@ export async function createFlat(propertyId: string, formData: FormData) {
   const name = str(formData, "name");
   const floor = str(formData, "floor");
   const rentAmount = num(formData, "rentAmount", 0);
+  const serviceCharge = num(formData, "serviceCharge", 0);
   if (!name) return;
   await db.insert(flats).values({
     id: id("flat"),
@@ -47,6 +50,7 @@ export async function createFlat(propertyId: string, formData: FormData) {
     name,
     floor,
     rentAmount: String(rentAmount),
+    serviceCharge: String(serviceCharge),
   });
   revalidatePath(`/properties/${propertyId}`);
   revalidatePath("/properties");
@@ -59,13 +63,18 @@ export async function updateFlat(flatId: string, propertyId: string, formData: F
   const name = str(formData, "name");
   const floor = str(formData, "floor");
   const rentAmount = num(formData, "rentAmount", 0);
+  const serviceCharge = num(formData, "serviceCharge", 0);
   const active = formData.get("active") === "on";
   await db
     .update(flats)
-    .set({ name, floor, rentAmount: String(rentAmount), active })
+    .set({ name, floor, rentAmount: String(rentAmount), serviceCharge: String(serviceCharge), active })
     .where(eq(flats.id, flatId));
+  // Rent/service charge feed directly into the current month's bill total — keep it
+  // in sync immediately rather than waiting for the next unrelated recalc.
+  await recalcAdjustmentForFlatMonth(flatId, firstOfMonth());
   revalidatePath(`/properties/${propertyId}`);
   revalidatePath("/properties");
+  revalidatePath("/bills");
 }
 
 export async function deleteFlat(flatId: string, propertyId: string) {

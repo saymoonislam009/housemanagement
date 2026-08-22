@@ -85,6 +85,11 @@ export const flats = pgTable("flats", {
   rentAmount: numeric("rent_amount", { precision: 12, scale: 2 })
     .notNull()
     .default("0"),
+  // Recurring monthly charge separate from rent (e.g. building maintenance / service
+  // charge) — many landlords bill this as its own line, not lumped into "Other".
+  serviceCharge: numeric("service_charge", { precision: 12, scale: 2 })
+    .notNull()
+    .default("0"),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -263,6 +268,20 @@ export const tenantDocuments = pgTable("tenant_documents", {
   sizeBytes: integer("size_bytes").notNull(),
   dataBase64: text("data_base64").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Free-text notes an owner jots down against a specific date — reminders, reasons
+// for a discount, what a tenant said on the phone, etc. Deliberately simple: no
+// categories or tagging, just a date and text (spec: don't overengineer).
+export const notes = pgTable("notes", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  noteDate: date("note_date").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 // ---------- Relations ----------

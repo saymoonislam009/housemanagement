@@ -7,7 +7,7 @@ import { CloseOnSuccess } from "@/components/CloseOnSuccess";
 import { MonthSwitcher } from "@/components/MonthSwitcher";
 import { PaymentForm } from "@/components/PaymentForm";
 import { CategoryRow } from "@/components/CategoryRow";
-import { money, firstOfMonth } from "@/lib/format";
+import { money, firstOfMonth, tenantAppliesToMonth } from "@/lib/format";
 import { Icon, paths } from "@/components/icons";
 import Link from "next/link";
 
@@ -35,6 +35,7 @@ export default async function BillsPage({ searchParams }: { searchParams: { mont
     water: t("water"),
     gas: t("gas"),
     other: t("other"),
+    serviceCharge: "Service charge",
   };
 
   return (
@@ -46,12 +47,16 @@ export default async function BillsPage({ searchParams }: { searchParams: { mont
           <div className="flex flex-wrap items-center gap-2">
             <a
               href={`/api/export/monthly?month=${month}`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-lg border border-ink-900/12 px-3 py-2 text-sm font-medium text-ink-800 hover:bg-ink-900/5"
             >
               Export CSV
             </a>
             <Link
               href={`/bills/print?month=${month}`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-lg border border-ink-900/12 px-3 py-2 text-sm font-medium text-ink-800 hover:bg-ink-900/5"
             >
               Print / PDF
@@ -84,7 +89,8 @@ export default async function BillsPage({ searchParams }: { searchParams: { mont
         <div className="space-y-3">
           {adjustments.map((a) => {
             const balance = Math.max(0, parseFloat(a.totalDue) - parseFloat(a.totalPaid));
-            const tenant = tenantByFlat.get(a.flatId);
+            const rawTenant = tenantByFlat.get(a.flatId);
+            const tenant = rawTenant && tenantAppliesToMonth(rawTenant.moveInDate, month) ? rawTenant : undefined;
             const breakdown = (a as any).billBreakdown ?? {};
             const overrides = (a as any).categoryOverrides ?? {};
 
@@ -108,6 +114,17 @@ export default async function BillsPage({ searchParams }: { searchParams: { mont
                     <span className="text-xs text-ink-600">{t("rent")}</span>
                     <span className="tabular text-sm font-medium text-ink-900">{money(a.rentAmount, org.currency)}</span>
                   </div>
+                  {(parseFloat(breakdown.serviceCharge ?? 0) > 0 || overrides.serviceCharge !== undefined) && (
+                    <CategoryRow
+                      adjustmentId={a.id}
+                      category="serviceCharge"
+                      label={categoryLabels.serviceCharge}
+                      computedValue={breakdown.serviceCharge ?? 0}
+                      overrideValue={overrides.serviceCharge}
+                      currency={org.currency}
+                      useMeterLabel="Use flat default"
+                    />
+                  )}
                   {parseFloat(a.previousOutstanding) > 0 && (
                     <div className="flex items-center justify-between bg-clay-500/5 px-2 py-1.5">
                       <span className="text-xs text-clay-500">Previous outstanding</span>
@@ -155,6 +172,8 @@ export default async function BillsPage({ searchParams }: { searchParams: { mont
                   {tenant && (
                     <Link
                       href={`/tenants/${tenant.id}/statement?month=${month}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 rounded-lg border border-ink-900/12 px-3 py-1.5 text-xs font-medium text-ink-800 hover:bg-ink-900/5"
                     >
                       <Icon path={paths.receipt} className="h-3.5 w-3.5" />

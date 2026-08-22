@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getAdjustmentsForMonth, getTenantsByFlatIds } from "@/lib/queries";
-import { firstOfMonth } from "@/lib/format";
+import { firstOfMonth, tenantAppliesToMonth } from "@/lib/format";
 
 function csvCell(v: string | number) {
   const s = String(v);
@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
     "Floor",
     "Tenant",
     "Rent",
+    "Service Charge",
     "Electricity",
     "Water",
     "Gas",
@@ -35,16 +36,18 @@ export async function GET(req: NextRequest) {
   ];
 
   const rows: (string | number)[][] = [];
-  const totals = { rent: 0, electricity: 0, water: 0, gas: 0, other: 0, adjustment: 0, current: 0, previousDue: 0, payable: 0, paid: 0, outstanding: 0 };
+  const totals = { rent: 0, serviceCharge: 0, electricity: 0, water: 0, gas: 0, other: 0, adjustment: 0, current: 0, previousDue: 0, payable: 0, paid: 0, outstanding: 0 };
 
   for (const a of adjustments) {
-    const tenant = tenantByFlat.get(a.flatId);
+    const rawTenant = tenantByFlat.get(a.flatId);
+    const tenant = rawTenant && tenantAppliesToMonth(rawTenant.moveInDate, month) ? rawTenant : undefined;
     const breakdown = (a as any).billBreakdown ?? {};
     const overrides = (a as any).categoryOverrides ?? {};
     const electricity = overrides.electricity ?? breakdown.electricity ?? 0;
     const water = overrides.water ?? breakdown.water ?? 0;
     const gas = overrides.gas ?? breakdown.gas ?? 0;
     const other = overrides.other ?? breakdown.other ?? 0;
+    const serviceCharge = overrides.serviceCharge ?? breakdown.serviceCharge ?? 0;
     const rent = parseFloat(a.rentAmount);
     const adjustment = parseFloat(a.adjustmentAmount);
     const previousDue = parseFloat((a as any).previousOutstanding ?? "0");
@@ -58,6 +61,7 @@ export async function GET(req: NextRequest) {
       a.floor,
       tenant?.name ?? "Vacant",
       rent.toFixed(2),
+      serviceCharge.toFixed?.(2) ?? serviceCharge,
       electricity.toFixed?.(2) ?? electricity,
       water.toFixed?.(2) ?? water,
       gas.toFixed?.(2) ?? gas,
@@ -71,6 +75,7 @@ export async function GET(req: NextRequest) {
     ]);
 
     totals.rent += rent;
+    totals.serviceCharge += serviceCharge;
     totals.electricity += electricity;
     totals.water += water;
     totals.gas += gas;
@@ -91,6 +96,7 @@ export async function GET(req: NextRequest) {
       "",
       "",
       totals.rent.toFixed(2),
+      totals.serviceCharge.toFixed(2),
       totals.electricity.toFixed(2),
       totals.water.toFixed(2),
       totals.gas.toFixed(2),

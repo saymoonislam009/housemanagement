@@ -38,6 +38,9 @@ export default async function PropertyDetailPage({ params }: { params: { id: str
               <Field label={t("rent_amount")}>
                 <Input name="rentAmount" type="number" step="0.01" min="0" required />
               </Field>
+              <Field label="Service charge" hint="Optional recurring monthly charge, separate from rent">
+                <Input name="serviceCharge" type="number" step="0.01" min="0" defaultValue="0" />
+              </Field>
               <Button type="submit" className="w-full">
                 {t("save")}
               </Button>
@@ -122,6 +125,9 @@ export default async function PropertyDetailPage({ params }: { params: { id: str
                     </Field>
                     <Field label={t("rent_amount")}>
                       <Input name="rentAmount" type="number" step="0.01" min="0" defaultValue={flat.rentAmount} required />
+                    </Field>
+                    <Field label="Service charge">
+                      <Input name="serviceCharge" type="number" step="0.01" min="0" defaultValue={flat.serviceCharge} />
                     </Field>
                     <label className="flex items-center gap-2 text-sm text-ink-800">
                       <input type="checkbox" name="active" defaultChecked={flat.active} className="h-4 w-4 rounded border-ink-900/20" />

@@ -12,6 +12,7 @@ export const NAV_ITEMS: { href: string; key: DictKey; icon: string }[] = [
   { href: "/payments", key: "nav_payments", icon: paths.wallet },
   { href: "/meters", key: "nav_meters", icon: paths.gauge },
   { href: "/expenses", key: "nav_expenses", icon: paths.chart },
+  { href: "/notes", key: "nav_notes", icon: paths.receipt },
   { href: "/reports", key: "nav_reports", icon: paths.chart },
   { href: "/settings", key: "nav_settings", icon: paths.settings },
 ];

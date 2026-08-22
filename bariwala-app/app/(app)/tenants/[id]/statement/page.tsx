@@ -31,18 +31,21 @@ export default async function TenantStatementPage({
 
   const breakdown = (bill as any).billBreakdown ?? {};
   const overrides = (bill as any).categoryOverrides ?? {};
-  const line = (key: "electricity" | "water" | "gas" | "other") => overrides[key] ?? breakdown[key] ?? 0;
+  const line = (key: "electricity" | "water" | "gas" | "other" | "serviceCharge") => overrides[key] ?? breakdown[key] ?? 0;
   const previousDue = parseFloat((bill as any).previousOutstanding ?? "0");
   const currentCharges = parseFloat(bill.totalDue) - previousDue;
   const remaining = Math.max(0, parseFloat(bill.totalDue) - parseFloat(bill.totalPaid));
 
   const rows: [string, number][] = [
     ["Rent", parseFloat(bill.rentAmount)],
+  ];
+  if (line("serviceCharge") > 0) rows.push(["Service Charge", line("serviceCharge")]);
+  rows.push(
     ["Electricity", line("electricity")],
     ["Water", line("water")],
     ["Gas", line("gas")],
-    ["Other", line("other")],
-  ];
+    ["Other", line("other")]
+  );
   if (parseFloat(bill.adjustmentAmount) !== 0) rows.push(["Adjustment", parseFloat(bill.adjustmentAmount)]);
 
   return (

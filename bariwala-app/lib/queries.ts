@@ -279,6 +279,14 @@ export async function getAdjustmentForFlatMonth(orgId: string, flatId: string, m
   return rows[0] ?? null;
 }
 
+export async function getNotes(orgId: string, limit = 100) {
+  return db.query.notes.findMany({
+    where: (n, { eq }) => eq(n.orgId, orgId),
+    orderBy: (n, { desc }) => desc(n.noteDate),
+    limit,
+  });
+}
+
 export async function getPaymentsForOrg(orgId: string, flatId?: string) {
   const rows = await db
     .select({

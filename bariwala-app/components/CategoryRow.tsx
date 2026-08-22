@@ -14,7 +14,7 @@ export function CategoryRow({
   useMeterLabel,
 }: {
   adjustmentId: string;
-  category: "electricity" | "water" | "gas" | "other";
+  category: "electricity" | "water" | "gas" | "other" | "serviceCharge";
   label: string;
   computedValue: number;
   overrideValue: number | undefined;

@@ -1,6 +1,6 @@
 import { getOrgContext, getAdjustmentsForMonth, getTenantsByFlatIds } from "@/lib/queries";
 import { PrintButton } from "@/components/PrintButton";
-import { money, monthLabel, firstOfMonth } from "@/lib/format";
+import { money, monthLabel, firstOfMonth, tenantAppliesToMonth } from "@/lib/format";
 import Link from "next/link";
 
 export default async function PrintMonthlyBillsPage({ searchParams }: { searchParams: { month?: string } }) {
@@ -19,8 +19,10 @@ export default async function PrintMonthlyBillsPage({ searchParams }: { searchPa
       const water = overrides.water ?? breakdown.water ?? 0;
       const gas = overrides.gas ?? breakdown.gas ?? 0;
       const other = overrides.other ?? breakdown.other ?? 0;
+      const serviceCharge = overrides.serviceCharge ?? breakdown.serviceCharge ?? 0;
       const previousDue = parseFloat((a as any).previousOutstanding ?? "0");
       acc.rent += parseFloat(a.rentAmount);
+      acc.serviceCharge += serviceCharge;
       acc.electricity += electricity;
       acc.water += water;
       acc.gas += gas;
@@ -32,7 +34,7 @@ export default async function PrintMonthlyBillsPage({ searchParams }: { searchPa
       acc.outstanding += Math.max(0, parseFloat(a.totalDue) - parseFloat(a.totalPaid));
       return acc;
     },
-    { rent: 0, electricity: 0, water: 0, gas: 0, other: 0, adjustment: 0, previousDue: 0, payable: 0, paid: 0, outstanding: 0 }
+    { rent: 0, serviceCharge: 0, electricity: 0, water: 0, gas: 0, other: 0, adjustment: 0, previousDue: 0, payable: 0, paid: 0, outstanding: 0 }
   );
 
   return (
@@ -58,6 +60,7 @@ export default async function PrintMonthlyBillsPage({ searchParams }: { searchPa
                 <th className="py-2 pr-2 font-medium">Floor</th>
                 <th className="py-2 pr-2 font-medium">Tenant</th>
                 <th className="py-2 pr-2 text-right font-medium">Rent</th>
+                <th className="py-2 pr-2 text-right font-medium">Svc.</th>
                 <th className="py-2 pr-2 text-right font-medium">Elec.</th>
                 <th className="py-2 pr-2 text-right font-medium">Water</th>
                 <th className="py-2 pr-2 text-right font-medium">Gas</th>
@@ -71,13 +74,15 @@ export default async function PrintMonthlyBillsPage({ searchParams }: { searchPa
             </thead>
             <tbody>
               {adjustments.map((a) => {
-                const tenant = tenantByFlat.get(a.flatId);
+                const rawTenant = tenantByFlat.get(a.flatId);
+                const tenant = rawTenant && tenantAppliesToMonth(rawTenant.moveInDate, month) ? rawTenant : undefined;
                 const breakdown = (a as any).billBreakdown ?? {};
                 const overrides = (a as any).categoryOverrides ?? {};
                 const electricity = overrides.electricity ?? breakdown.electricity ?? 0;
                 const water = overrides.water ?? breakdown.water ?? 0;
                 const gas = overrides.gas ?? breakdown.gas ?? 0;
                 const other = overrides.other ?? breakdown.other ?? 0;
+                const serviceCharge = overrides.serviceCharge ?? breakdown.serviceCharge ?? 0;
                 const previousDue = parseFloat((a as any).previousOutstanding ?? "0");
                 const outstanding = Math.max(0, parseFloat(a.totalDue) - parseFloat(a.totalPaid));
                 return (
@@ -86,6 +91,7 @@ export default async function PrintMonthlyBillsPage({ searchParams }: { searchPa
                     <td className="py-1.5 pr-2 text-ink-600">{a.floor}</td>
                     <td className="py-1.5 pr-2 text-ink-700">{tenant?.name ?? "Vacant"}</td>
                     <td className="tabular py-1.5 pr-2 text-right text-ink-800">{money(a.rentAmount, org.currency)}</td>
+                    <td className="tabular py-1.5 pr-2 text-right text-ink-800">{money(serviceCharge, org.currency)}</td>
                     <td className="tabular py-1.5 pr-2 text-right text-ink-800">{money(electricity, org.currency)}</td>
                     <td className="tabular py-1.5 pr-2 text-right text-ink-800">{money(water, org.currency)}</td>
                     <td className="tabular py-1.5 pr-2 text-right text-ink-800">{money(gas, org.currency)}</td>
@@ -107,6 +113,7 @@ export default async function PrintMonthlyBillsPage({ searchParams }: { searchPa
                   TOTAL
                 </td>
                 <td className="tabular py-2 pr-2 text-right">{money(totals.rent, org.currency)}</td>
+                <td className="tabular py-2 pr-2 text-right">{money(totals.serviceCharge, org.currency)}</td>
                 <td className="tabular py-2 pr-2 text-right">{money(totals.electricity, org.currency)}</td>
                 <td className="tabular py-2 pr-2 text-right">{money(totals.water, org.currency)}</td>
                 <td className="tabular py-2 pr-2 text-right">{money(totals.gas, org.currency)}</td>

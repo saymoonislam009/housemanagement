@@ -27,3 +27,12 @@ export function monthOffset(monthStr: string, offset: number) {
   d.setUTCMonth(d.getUTCMonth() + offset);
   return d.toISOString().slice(0, 10);
 }
+
+// A flat's currently-assigned tenant shouldn't be shown as "the tenant" for months
+// before they actually moved in (this was previously causing a newly-added tenant
+// to appear as if they occupied the flat retroactively, in every past month).
+export function tenantAppliesToMonth(moveInDate: string | null, month: string): boolean {
+  if (!moveInDate) return true; // no move-in date on file — can't judge, so don't hide them
+  const startOfNextMonth = monthOffset(month, 1);
+  return moveInDate < startOfNextMonth;
+}

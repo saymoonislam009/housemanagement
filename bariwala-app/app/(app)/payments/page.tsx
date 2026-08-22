@@ -82,6 +82,8 @@ export default async function PaymentsPage({ searchParams }: { searchParams: { f
                         <div className="flex items-center justify-end gap-1">
                           <Link
                             href={`/payments/${p.id}/receipt`}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="rounded-lg p-1.5 text-ink-600/50 hover:bg-ink-900/5"
                             title="View receipt"
                           >
@@ -130,7 +132,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: { f
                 <div className="mt-3 flex items-center gap-2">
                   <span className="text-xs text-ink-600">{t(methodKey[p.method] as any)}</span>
                   <div className="ml-auto flex items-center gap-1">
-                    <Link href={`/payments/${p.id}/receipt`}>
+                    <Link href={`/payments/${p.id}/receipt`} target="_blank" rel="noopener noreferrer">
                       <Button variant="ghost" className="!px-2.5 !py-1 text-xs">
                         Receipt
                       </Button>
