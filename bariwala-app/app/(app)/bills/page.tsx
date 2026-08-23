@@ -1,4 +1,4 @@
-import { getOrgContext, getAdjustmentsForMonth, getTenantsByFlatIds } from "@/lib/queries";
+import { getOrgContext, getAdjustmentsForMonth, getTenantsByIds } from "@/lib/queries";
 import { ensureAdjustmentsForMonth, setManualAdjustment } from "@/lib/actions/billing";
 import { getDict } from "@/lib/i18n";
 import { PageHeader, Card, Field, Input, Button, StatusPill, EmptyState } from "@/components/ui";
@@ -7,7 +7,7 @@ import { CloseOnSuccess } from "@/components/CloseOnSuccess";
 import { MonthSwitcher } from "@/components/MonthSwitcher";
 import { PaymentForm } from "@/components/PaymentForm";
 import { CategoryRow } from "@/components/CategoryRow";
-import { money, firstOfMonth, tenantAppliesToMonth } from "@/lib/format";
+import { money, firstOfMonth } from "@/lib/format";
 import { Icon, paths } from "@/components/icons";
 import Link from "next/link";
 
@@ -18,8 +18,8 @@ export default async function BillsPage({ searchParams }: { searchParams: { mont
 
   await ensureAdjustmentsForMonth(org.id, month);
   const adjustments = await getAdjustmentsForMonth(org.id, month);
-  const tenants = await getTenantsByFlatIds(adjustments.map((a) => a.flatId));
-  const tenantByFlat = new Map(tenants.map((tn) => [tn.flatId, tn]));
+  const tenants = await getTenantsByIds(adjustments.map((a) => (a as any).tenantId));
+  const tenantById = new Map(tenants.map((tn) => [tn.id, tn]));
 
   const totals = adjustments.reduce(
     (acc, a) => {
@@ -93,8 +93,7 @@ export default async function BillsPage({ searchParams }: { searchParams: { mont
         <div className="space-y-3">
           {adjustments.map((a) => {
             const balance = Math.max(0, parseFloat(a.totalDue) - parseFloat(a.totalPaid));
-            const rawTenant = tenantByFlat.get(a.flatId);
-            const tenant = rawTenant && tenantAppliesToMonth(rawTenant.moveInDate, month) ? rawTenant : undefined;
+            const tenant = (a as any).tenantId ? tenantById.get((a as any).tenantId) : undefined;
             const breakdown = (a as any).billBreakdown ?? {};
             const overrides = (a as any).categoryOverrides ?? {};
 

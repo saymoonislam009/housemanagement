@@ -73,6 +73,7 @@ export async function getTenantsForOrg(orgId: string) {
       email: tenants.email,
       nid: tenants.nid,
       moveInDate: tenants.moveInDate,
+      moveOutDate: tenants.moveOutDate,
       active: tenants.active,
       flatId: tenants.flatId,
       flatName: flats.name,
@@ -96,6 +97,7 @@ export async function getTenant(orgId: string, tenantId: string) {
       email: tenants.email,
       nid: tenants.nid,
       moveInDate: tenants.moveInDate,
+      moveOutDate: tenants.moveOutDate,
       active: tenants.active,
       notes: tenants.notes,
       flatId: tenants.flatId,
@@ -140,6 +142,7 @@ export async function getAdjustmentsForMonth(orgId: string, month: string) {
     .select({
       id: monthlyAdjustments.id,
       flatId: monthlyAdjustments.flatId,
+      tenantId: monthlyAdjustments.tenantId,
       month: monthlyAdjustments.month,
       rentAmount: monthlyAdjustments.rentAmount,
       billsAmount: monthlyAdjustments.billsAmount,
@@ -163,6 +166,12 @@ export async function getAdjustmentsForMonth(orgId: string, month: string) {
   return rows;
 }
 
+export async function getTenantsByIds(tenantIds: (string | null)[]) {
+  const ids = [...new Set(tenantIds.filter((x): x is string => !!x))];
+  if (ids.length === 0) return [];
+  return db.query.tenants.findMany({ where: (t, { inArray }) => inArray(t.id, ids) });
+}
+
 export async function getTenantsByFlatIds(flatIds: string[]) {
   if (flatIds.length === 0) return [];
   const rows = await db.query.tenants.findMany({ where: (t, { inArray }) => inArray(t.flatId, flatIds) });
@@ -178,9 +187,9 @@ export async function getPreviousReadingValue(meterId: string, month: string, st
   if (prior.length) return parseFloat(prior[0].currentReading);
   return parseFloat(startingReading);
 }
-export async function getTenantMonthlyHistory(flatId: string, limit = 12) {
+export async function getTenantMonthlyHistory(tenantId: string, limit = 24) {
   return db.query.monthlyAdjustments.findMany({
-    where: eq(monthlyAdjustments.flatId, flatId),
+    where: eq(monthlyAdjustments.tenantId, tenantId),
     orderBy: desc(monthlyAdjustments.month),
     limit,
   });
@@ -256,6 +265,7 @@ export async function getAdjustmentForFlatMonth(orgId: string, flatId: string, m
     .select({
       id: monthlyAdjustments.id,
       flatId: monthlyAdjustments.flatId,
+      tenantId: monthlyAdjustments.tenantId,
       month: monthlyAdjustments.month,
       rentAmount: monthlyAdjustments.rentAmount,
       billsAmount: monthlyAdjustments.billsAmount,

@@ -25,27 +25,30 @@ export function BottomNav({ locale }: { locale: Locale }) {
           onClick={() => setMoreOpen(false)}
         >
           <div
-            className="absolute inset-x-0 bottom-0 rounded-t-2xl bg-paper-50 p-4 pb-8 shadow-card"
+            className="absolute inset-x-0 bottom-0 max-h-[75vh] overflow-y-auto rounded-t-2xl bg-paper-50 p-4 shadow-card"
+            style={{ paddingBottom: "max(2rem, env(safe-area-inset-bottom))" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-ink-900/15" />
+            <div className="sticky top-0 mx-auto mb-3 h-1 w-10 rounded-full bg-ink-900/15" />
             <div className="grid grid-cols-3 gap-2">
               {rest.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={() => setMoreOpen(false)}
-                  className="flex flex-col items-center gap-2 rounded-xl border border-ink-900/8 p-4 text-ink-800 active:bg-ink-900/5"
+                  className="flex flex-col items-center gap-2 rounded-xl border border-ink-900/8 p-3.5 text-ink-800 active:bg-ink-900/5"
                 >
                   <Icon path={item.icon} className="h-5 w-5" />
-                  <span className="text-xs">{t(item.key)}</span>
+                  <span className="text-center text-xs leading-tight">{t(item.key)}</span>
                 </Link>
               ))}
             </div>
           </div>
         </div>
       )}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-ink-900/10 bg-paper-50/95 backdrop-blur md:hidden print:hidden">
+      <nav
+        className="fixed inset-x-0 bottom-0 z-30 flex border-t border-ink-900/10 bg-paper-50/95 backdrop-blur pb-[env(safe-area-inset-bottom)] md:hidden print:hidden"
+      >
         {primary.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           return (

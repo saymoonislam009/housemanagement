@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getAdjustmentsForMonth, getTenantsByFlatIds } from "@/lib/queries";
-import { firstOfMonth, tenantAppliesToMonth } from "@/lib/format";
+import { getAdjustmentsForMonth, getTenantsByIds } from "@/lib/queries";
+import { firstOfMonth } from "@/lib/format";
 
 function csvCell(v: string | number) {
   const s = String(v);
@@ -14,8 +14,8 @@ export async function GET(req: NextRequest) {
 
   const month = req.nextUrl.searchParams.get("month") || firstOfMonth();
   const adjustments = await getAdjustmentsForMonth(session.orgId, month);
-  const tenants = await getTenantsByFlatIds(adjustments.map((a) => a.flatId));
-  const tenantByFlat = new Map(tenants.map((t) => [t.flatId, t]));
+  const tenants = await getTenantsByIds(adjustments.map((a) => (a as any).tenantId));
+  const tenantById = new Map(tenants.map((t) => [t.id, t]));
 
   const header = [
     "Flat",
@@ -39,8 +39,7 @@ export async function GET(req: NextRequest) {
   const totals = { rent: 0, serviceCharge: 0, electricity: 0, water: 0, gas: 0, other: 0, adjustment: 0, current: 0, previousDue: 0, payable: 0, paid: 0, outstanding: 0 };
 
   for (const a of adjustments) {
-    const rawTenant = tenantByFlat.get(a.flatId);
-    const tenant = rawTenant && tenantAppliesToMonth(rawTenant.moveInDate, month) ? rawTenant : undefined;
+    const tenant = (a as any).tenantId ? tenantById.get((a as any).tenantId) : undefined;
     const breakdown = (a as any).billBreakdown ?? {};
     const overrides = (a as any).categoryOverrides ?? {};
     const electricity = overrides.electricity ?? breakdown.electricity ?? 0;

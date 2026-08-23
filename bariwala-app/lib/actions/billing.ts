@@ -1,11 +1,11 @@
 "use server";
 
 import { db } from "@/db";
-import { flats, properties, meters, meterReadings, monthlyAdjustments, payments, notifications } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { flats, properties, meters, meterReadings, monthlyAdjustments, payments, notifications, tenants } from "@/db/schema";
+import { and, eq, gt, lt, desc, asc } from "drizzle-orm";
 import { id } from "@/lib/id";
 import { requireOrg, str, num, round2, assertOrgOwnsFlat, assertOrgOwnsAdjustment, assertOrgOwnsPayment } from "./helpers";
-import { monthOffset, firstOfMonth } from "@/lib/format";
+import { monthOffset, firstOfMonth, occupiedMonth } from "@/lib/format";
 import { revalidatePath } from "next/cache";
 
 type CategoryKey = "electricity" | "water" | "gas" | "other" | "serviceCharge";
@@ -30,6 +30,21 @@ function isFutureMonth(month: string): boolean {
   return month > firstOfMonth();
 }
 
+// Which tenant (if any) actually lived in this flat during this specific month —
+// this is what makes a flat's bill correctly show "Tenant A" for the months before
+// they moved out and "Tenant B" for the months after B moved in, instead of always
+// showing whoever the flat's tenant happens to be today.
+async function getOccupyingTenant(flatId: string, month: string) {
+  const allTenants = await db.query.tenants.findMany({ where: eq(tenants.flatId, flatId) });
+  const candidates = allTenants.filter((t) => occupiedMonth(t.moveInDate, t.moveOutDate, month));
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+  // More than one tenant's dates overlap this month (shouldn't normally happen) —
+  // prefer whoever moved in most recently as the best guess.
+  candidates.sort((a, b) => (b.moveInDate ?? "").localeCompare(a.moveInDate ?? ""));
+  return candidates[0];
+}
+
 async function getSharedSplitShareForFlat(propertyId: string, flatId: string, month: string) {
   const sharedMeters = await db.query.meters.findMany({
     where: and(eq(meters.propertyId, propertyId), eq(meters.scope, "shared"), eq(meters.allocationMethod, "equal_split")),
@@ -40,7 +55,6 @@ async function getSharedSplitShareForFlat(propertyId: string, flatId: string, mo
     where: and(eq(flats.propertyId, propertyId), eq(flats.active, true)),
   });
   if (activeFlats.length === 0) return 0;
-  // If the flat we're computing for isn't itself active, it gets no share.
   if (!activeFlats.some((f) => f.id === flatId)) return 0;
 
   let total = 0;
@@ -53,8 +67,6 @@ async function getSharedSplitShareForFlat(propertyId: string, flatId: string, mo
   return round2(total / activeFlats.length);
 }
 
-// When a shared meter's reading changes, every active flat's share changes too —
-// recalc them all, not just the one flat that happened to trigger the update.
 export async function recalcAllFlatsForSharedMeter(propertyId: string, month: string) {
   const activeFlats = await db.query.flats.findMany({
     where: and(eq(flats.propertyId, propertyId), eq(flats.active, true)),
@@ -62,16 +74,20 @@ export async function recalcAllFlatsForSharedMeter(propertyId: string, month: st
   await Promise.all(activeFlats.map((f) => recalcAdjustmentForFlatMonth(f.id, month)));
 }
 
-// Recalculates a flat's monthly bill: pulls meter-computed totals per utility category,
-// applies any manual category overrides the owner typed in directly, adds rent and
-// the flat's recurring service charge, and keeps existing payments/manual adjustment
-// untouched. This is the single source of truth for monthly totals (spec #45) —
-// every page reads from this, nothing recalculates the formula independently.
+// Recalculates a flat's monthly bill. This is the single source of truth for
+// monthly totals (spec #45) — every page reads from this, nothing recalculates
+// the formula independently. Three things it gets right that are easy to get wrong:
 //
-// After saving, it also cascades forward: if a bill for the *next* month already
-// exists, that month's "previous outstanding" depends on what we just recalculated
-// here, so we recalc it too (which in turn cascades to the month after that, and so
-// on) — otherwise editing an old month leaves every later month quietly stale.
+// 1. TENANT PER MONTH — resolves who actually lived here *this* month (not just
+//    the flat's current tenant), so a flat's history correctly shows "A" for Jan
+//    and "B" for Feb when A moved out and B moved in between.
+// 2. VACANT MONTHS ARE ZERO — no tenant that month means no rent, no bill, nothing
+//    owed. A flat sitting empty doesn't generate a phantom debt.
+// 3. DEBT FOLLOWS THE TENANT, NOT THE FLAT — a new tenant never inherits the
+//    previous tenant's unpaid balance. Previous-outstanding only carries forward
+//    when the same person occupied both this month and the most recent prior
+//    month that has a bill (which may not be the literal previous month, if some
+//    months were never visited/generated — we look back until we find one).
 export async function recalcAdjustmentForFlatMonth(flatId: string, month: string) {
   const flat = await db.query.flats.findFirst({ where: eq(flats.id, flatId) });
   if (!flat) return null;
@@ -80,10 +96,52 @@ export async function recalcAdjustmentForFlatMonth(flatId: string, month: string
     where: and(eq(monthlyAdjustments.flatId, flatId), eq(monthlyAdjustments.month, month)),
   });
 
-  // Don't manufacture a brand-new bill for a month that hasn't started — but if one
-  // already exists (e.g. from before this guard existed), keep it in sync rather
-  // than abandoning it.
   if (!existing && isFutureMonth(month)) return null;
+
+  const occupyingTenant = await getOccupyingTenant(flatId, month);
+
+  // Vacant this month: zero everything out, nothing owed, nothing carried forward.
+  if (!occupyingTenant) {
+    let resultId: string;
+    if (existing) {
+      await db
+        .update(monthlyAdjustments)
+        .set({
+          tenantId: null,
+          rentAmount: "0",
+          billsAmount: "0",
+          billBreakdown: {},
+          previousOutstanding: "0",
+          totalDue: "0",
+          status: "paid",
+          updatedAt: new Date(),
+        })
+        .where(eq(monthlyAdjustments.id, existing.id));
+      resultId = existing.id;
+    } else {
+      const newId = id("adj");
+      const propertyForOrg = await db.query.properties.findFirst({ where: eq(properties.id, flat.propertyId) });
+      await db.insert(monthlyAdjustments).values({
+        id: newId,
+        orgId: propertyForOrg?.orgId ?? "",
+        flatId,
+        tenantId: null,
+        month,
+        rentAmount: "0",
+        billsAmount: "0",
+        billBreakdown: {},
+        categoryOverrides: {},
+        previousOutstanding: "0",
+        adjustmentAmount: "0",
+        totalDue: "0",
+        totalPaid: "0",
+        status: "paid",
+      });
+      resultId = newId;
+    }
+    await cascadeForward(flatId, month);
+    return resultId;
+  }
 
   const rows = await db
     .select({ amount: meterReadings.amount, type: meters.type })
@@ -102,8 +160,6 @@ export async function recalcAdjustmentForFlatMonth(flatId: string, month: string
     computed[bucket] = round2(computed[bucket] + parseFloat(r.amount));
   }
 
-  // Spec #17: shared meters (e.g. a water pump) set to "equal split" get divided across
-  // every active flat in the same property and folded into that flat's "other" charge.
   const sharedSplitAmount = await getSharedSplitShareForFlat(flat.propertyId, flatId, month);
   computed.other = round2(computed.other + sharedSplitAmount);
 
@@ -120,17 +176,16 @@ export async function recalcAdjustmentForFlatMonth(flatId: string, month: string
   const adjustmentAmount = existing ? parseFloat(existing.adjustmentAmount) : 0;
   const totalPaid = existing ? parseFloat(existing.totalPaid) : 0;
 
-  // Spec #7: whatever the tenant still owed last month rolls into this month's total,
-  // rather than quietly disappearing. This reads whatever the previous month's row
-  // currently holds — which is exactly why cascading forward (below) matters: if the
-  // previous month itself just changed, it must be recalculated *before* this read
-  // happens, or this figure goes stale.
-  const prevMonth = monthOffset(month, -1);
+  // Look back for the most recent PRIOR bill for this flat, regardless of exact
+  // adjacency (handles gaps where a month was never generated), then only carry
+  // its balance forward if the same tenant occupied both.
   const prevAdjustment = await db.query.monthlyAdjustments.findFirst({
-    where: and(eq(monthlyAdjustments.flatId, flatId), eq(monthlyAdjustments.month, prevMonth)),
+    where: and(eq(monthlyAdjustments.flatId, flatId), lt(monthlyAdjustments.month, month)),
+    orderBy: desc(monthlyAdjustments.month),
   });
-  const previousOutstanding = prevAdjustment
-    ? round2(Math.max(0, parseFloat(prevAdjustment.totalDue) - parseFloat(prevAdjustment.totalPaid)))
+  const sameTenantAsBefore = !!prevAdjustment && prevAdjustment.tenantId === occupyingTenant.id;
+  const previousOutstanding = sameTenantAsBefore
+    ? round2(Math.max(0, parseFloat(prevAdjustment!.totalDue) - parseFloat(prevAdjustment!.totalPaid)))
     : 0;
 
   const totalDue = round2(rentAmount + billsAmount + adjustmentAmount + previousOutstanding);
@@ -141,6 +196,7 @@ export async function recalcAdjustmentForFlatMonth(flatId: string, month: string
     await db
       .update(monthlyAdjustments)
       .set({
+        tenantId: occupyingTenant.id,
         rentAmount: String(rentAmount),
         billsAmount: String(billsAmount),
         billBreakdown: final,
@@ -153,13 +209,12 @@ export async function recalcAdjustmentForFlatMonth(flatId: string, month: string
     resultId = existing.id;
   } else {
     const newId = id("adj");
-    const propertyForOrg = await db.query.properties.findFirst({
-      where: eq(properties.id, flat.propertyId),
-    });
+    const propertyForOrg = await db.query.properties.findFirst({ where: eq(properties.id, flat.propertyId) });
     await db.insert(monthlyAdjustments).values({
       id: newId,
       orgId: propertyForOrg?.orgId ?? "",
       flatId,
+      tenantId: occupyingTenant.id,
       month,
       rentAmount: String(rentAmount),
       billsAmount: String(billsAmount),
@@ -174,29 +229,26 @@ export async function recalcAdjustmentForFlatMonth(flatId: string, month: string
     resultId = newId;
   }
 
-  await cascadeToNextMonth(flatId, month);
+  await cascadeForward(flatId, month);
   return resultId;
 }
 
-// If next month's bill already exists, its previousOutstanding depends on what we
-// just computed here — recalculating it will in turn cascade to the month after
-// that, and so on, so calling this once refreshes the whole remaining chain.
-async function cascadeToNextMonth(flatId: string, month: string) {
-  const nextMonth = monthOffset(month, 1);
-  const nextExisting = await db.query.monthlyAdjustments.findFirst({
-    where: and(eq(monthlyAdjustments.flatId, flatId), eq(monthlyAdjustments.month, nextMonth)),
+// Finds the nearest EXISTING later month for this flat (not necessarily exactly
+// +1 — handles gaps) and recalculates it, which cascades further via its own
+// call at the end. One call here refreshes the whole remaining chain.
+async function cascadeForward(flatId: string, month: string) {
+  const next = await db.query.monthlyAdjustments.findFirst({
+    where: and(eq(monthlyAdjustments.flatId, flatId), gt(monthlyAdjustments.month, month)),
+    orderBy: asc(monthlyAdjustments.month),
   });
-  if (nextExisting) {
-    await recalcAdjustmentForFlatMonth(flatId, nextMonth);
+  if (next) {
+    await recalcAdjustmentForFlatMonth(flatId, next.month);
   }
 }
 
-// Makes sure every active flat has a bill row for the given month. Runs on every
-// visit to Bills/Dashboard/History, so recalculating flats one-by-one added real,
-// felt latency for houses with several flats — these are independent per-flat
-// writes, so there's no race risk in running them concurrently.
+// Makes sure every active flat has a bill row for the given month.
 export async function ensureAdjustmentsForMonth(orgId: string, month: string) {
-  if (isFutureMonth(month)) return; // nothing to generate for a month that hasn't arrived yet
+  if (isFutureMonth(month)) return;
 
   const rows = await db
     .select({ id: flats.id, active: flats.active })
@@ -207,8 +259,6 @@ export async function ensureAdjustmentsForMonth(orgId: string, month: string) {
   await Promise.all(rows.map((flat) => recalcAdjustmentForFlatMonth(flat.id, month)));
 }
 
-// Owner types in (or overrides) one utility category directly — e.g. no gas meter
-// exists, but the owner knows the gas bill was ৳300 this month (spec #11, #13, #41).
 export async function setCategoryOverride(adjustmentId: string, formData: FormData) {
   const session = await requireOrg();
   const adj = await assertOrgOwnsAdjustment(session.orgId, adjustmentId);
@@ -217,7 +267,7 @@ export async function setCategoryOverride(adjustmentId: string, formData: FormDa
   const overrides = { ...((adj.categoryOverrides as Record<string, number>) ?? {}) };
 
   if (rawValue === "") {
-    delete overrides[category]; // clearing the override falls back to meter-computed value
+    delete overrides[category];
   } else {
     overrides[category] = round2(parseFloat(rawValue) || 0);
   }
@@ -241,7 +291,7 @@ export async function setManualAdjustment(adjustmentId: string, formData: FormDa
     .update(monthlyAdjustments)
     .set({ adjustmentAmount: String(amount), adjustmentNote: note || null, totalDue: String(totalDue), status, updatedAt: new Date() })
     .where(eq(monthlyAdjustments.id, adjustmentId));
-  await cascadeToNextMonth(existing.flatId, existing.month);
+  await cascadeForward(existing.flatId, existing.month);
   revalidatePath("/bills");
   revalidatePath("/dashboard");
 }
@@ -280,7 +330,7 @@ export async function recordPayment(formData: FormData) {
         .update(monthlyAdjustments)
         .set({ totalPaid: String(totalPaid), status, updatedAt: new Date() })
         .where(eq(monthlyAdjustments.id, adjustmentId));
-      await cascadeToNextMonth(adj.flatId, adj.month);
+      await cascadeForward(adj.flatId, adj.month);
     }
   }
 
@@ -298,8 +348,6 @@ export async function recordPayment(formData: FormData) {
   revalidatePath("/tenants");
 }
 
-// Editing or deleting a payment must ripple through to the adjustment's paid/remaining/
-// status, the tenant's history, and the dashboard — never leave stale totals (spec #22).
 export async function updatePayment(paymentId: string, formData: FormData) {
   const session = await requireOrg();
   const payment = await assertOrgOwnsPayment(session.orgId, paymentId);
@@ -325,7 +373,7 @@ export async function updatePayment(paymentId: string, formData: FormData) {
         .update(monthlyAdjustments)
         .set({ totalPaid: String(totalPaid), status, updatedAt: new Date() })
         .where(eq(monthlyAdjustments.id, adj.id));
-      await cascadeToNextMonth(adj.flatId, adj.month);
+      await cascadeForward(adj.flatId, adj.month);
     }
   }
 
@@ -349,7 +397,7 @@ export async function deletePayment(paymentId: string) {
         .update(monthlyAdjustments)
         .set({ totalPaid: String(totalPaid), status, updatedAt: new Date() })
         .where(eq(monthlyAdjustments.id, adj.id));
-      await cascadeToNextMonth(adj.flatId, adj.month);
+      await cascadeForward(adj.flatId, adj.month);
     }
   }
   revalidatePath("/bills");

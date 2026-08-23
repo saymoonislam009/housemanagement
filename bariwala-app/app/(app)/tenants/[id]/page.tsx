@@ -20,7 +20,7 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
   if (!tenant) notFound();
   const [payments, history, documents] = await Promise.all([
     getPaymentsForOrg(org.id, tenant.flatId).then((rows) => rows.filter((p) => p.tenantId === tenant.id)),
-    getTenantMonthlyHistory(tenant.flatId, 12),
+    getTenantMonthlyHistory(tenant.id, 24),
     getTenantDocuments(tenant.id),
   ]);
 
@@ -64,6 +64,9 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
             </Field>
             <Field label={t("move_in_date")}>
               <Input name="moveInDate" type="date" defaultValue={tenant.moveInDate ?? ""} />
+            </Field>
+            <Field label="Move-out date" hint="Only set if they've actually left">
+              <Input name="moveOutDate" type="date" defaultValue={tenant.moveOutDate ?? ""} />
             </Field>
             <label className="flex items-center gap-2 self-end pb-2 text-sm text-ink-800">
               <input type="checkbox" name="active" defaultChecked={tenant.active} className="h-4 w-4 rounded border-ink-900/20" />

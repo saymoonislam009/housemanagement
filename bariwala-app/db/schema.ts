@@ -104,6 +104,7 @@ export const tenants = pgTable("tenants", {
   email: text("email"),
   nid: text("nid"),
   moveInDate: date("move_in_date"),
+  moveOutDate: date("move_out_date"),
   active: boolean("active").notNull().default(true),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -177,6 +178,10 @@ export const monthlyAdjustments = pgTable(
     flatId: text("flat_id")
       .notNull()
       .references(() => flats.id, { onDelete: "cascade" }),
+    // Whoever actually occupied the flat for THIS specific month, resolved from
+    // move-in/move-out dates at recalc time — not just "whoever the flat's current
+    // tenant happens to be". Null means the flat was vacant that month.
+    tenantId: text("tenant_id").references(() => tenants.id, { onDelete: "set null" }),
     month: date("month").notNull(),
     rentAmount: numeric("rent_amount", { precision: 12, scale: 2 }).notNull().default("0"),
     billsAmount: numeric("bills_amount", { precision: 12, scale: 2 }).notNull().default("0"),

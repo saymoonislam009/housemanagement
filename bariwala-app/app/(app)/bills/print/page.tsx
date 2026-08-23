@@ -1,6 +1,6 @@
-import { getOrgContext, getAdjustmentsForMonth, getTenantsByFlatIds } from "@/lib/queries";
+import { getOrgContext, getAdjustmentsForMonth, getTenantsByIds } from "@/lib/queries";
 import { PrintButton } from "@/components/PrintButton";
-import { money, monthLabel, firstOfMonth, tenantAppliesToMonth } from "@/lib/format";
+import { money, monthLabel, firstOfMonth } from "@/lib/format";
 import Link from "next/link";
 
 export default async function PrintMonthlyBillsPage({ searchParams }: { searchParams: { month?: string } }) {
@@ -8,8 +8,8 @@ export default async function PrintMonthlyBillsPage({ searchParams }: { searchPa
   const month = searchParams.month || firstOfMonth();
   const dLocale = org.language === "bn" ? "bn-BD" : "en-US";
   const adjustments = await getAdjustmentsForMonth(org.id, month);
-  const tenants = await getTenantsByFlatIds(adjustments.map((a) => a.flatId));
-  const tenantByFlat = new Map(tenants.map((t) => [t.flatId, t]));
+  const tenants = await getTenantsByIds(adjustments.map((a) => (a as any).tenantId));
+  const tenantById = new Map(tenants.map((t) => [t.id, t]));
 
   const totals = adjustments.reduce(
     (acc, a) => {
@@ -74,8 +74,7 @@ export default async function PrintMonthlyBillsPage({ searchParams }: { searchPa
             </thead>
             <tbody>
               {adjustments.map((a) => {
-                const rawTenant = tenantByFlat.get(a.flatId);
-                const tenant = rawTenant && tenantAppliesToMonth(rawTenant.moveInDate, month) ? rawTenant : undefined;
+                const tenant = (a as any).tenantId ? tenantById.get((a as any).tenantId) : undefined;
                 const breakdown = (a as any).billBreakdown ?? {};
                 const overrides = (a as any).categoryOverrides ?? {};
                 const electricity = overrides.electricity ?? breakdown.electricity ?? 0;

@@ -41,11 +41,18 @@ export function monthOffset(monthStr: string, offset: number) {
   return d.toISOString().slice(0, 10);
 }
 
-// A flat's currently-assigned tenant shouldn't be shown as "the tenant" for months
-// before they actually moved in (this was previously causing a newly-added tenant
-// to appear as if they occupied the flat retroactively, in every past month).
-export function tenantAppliesToMonth(moveInDate: string | null, month: string): boolean {
-  if (!moveInDate) return true; // no move-in date on file — can't judge, so don't hide them
+// Did this tenant's stay actually overlap this calendar month at all? Used to
+// resolve which tenant (if any) a flat's bill for a given month belongs to —
+// a flat can have several tenants over its lifetime, and each month's bill
+// should show whoever was actually living there that month, not just whoever
+// the flat's "current" tenant happens to be today.
+export function occupiedMonth(
+  moveInDate: string | null,
+  moveOutDate: string | null,
+  month: string
+): boolean {
   const startOfNextMonth = monthOffset(month, 1);
-  return moveInDate < startOfNextMonth;
+  const movedInBeforeMonthEnded = !moveInDate || moveInDate < startOfNextMonth;
+  const stillTherePartOfMonth = !moveOutDate || moveOutDate >= month;
+  return movedInBeforeMonthEnded && stillTherePartOfMonth;
 }

@@ -17,7 +17,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Sidebar locale={locale} orgName={org.name} />
       <div className="flex min-h-screen flex-1 flex-col">
         <TopBar locale={locale} notifications={notifications} unreadCount={unreadCount} title={org.name} />
-        <main className="flex-1 px-4 pb-24 pt-5 md:px-8 md:pb-10 md:pt-6">{children}</main>
+        <main className="flex-1 px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 md:px-8 md:pb-10 md:pt-6">
+          {children}
+        </main>
       </div>
       <BottomNav locale={locale} />
     </div>

@@ -29,6 +29,20 @@ export default async function TenantStatementPage({
     );
   }
 
+  if ((bill as any).tenantId !== tenant.id) {
+    return (
+      <div className="mx-auto max-w-lg py-16 text-center">
+        <p className="text-sm text-ink-600">
+          {tenant.name} wasn't the tenant of this flat in {monthLabel(month, dLocale)} — this bill belongs to whoever
+          was living there that month.
+        </p>
+        <Link href={`/tenants/${tenant.id}`} className="mt-3 inline-block text-sm text-brass-600 underline">
+          Back to tenant
+        </Link>
+      </div>
+    );
+  }
+
   const breakdown = (bill as any).billBreakdown ?? {};
   const overrides = (bill as any).categoryOverrides ?? {};
   const line = (key: "electricity" | "water" | "gas" | "other" | "serviceCharge") => overrides[key] ?? breakdown[key] ?? 0;

@@ -5,6 +5,8 @@ import { tenants, flats, notifications } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { id } from "@/lib/id";
 import { requireOrg, str, assertOrgOwnsFlat, assertOrgOwnsTenant } from "./helpers";
+import { recalcAdjustmentForFlatMonth } from "./billing";
+import { firstOfMonth } from "@/lib/format";
 import { revalidatePath } from "next/cache";
 
 export type CreateTenantState = { error?: string } | null;
@@ -58,12 +60,13 @@ export async function createTenant(_prev: CreateTenantState, formData: FormData)
 
 export async function updateTenant(tenantId: string, formData: FormData) {
   const session = await requireOrg();
-  await assertOrgOwnsTenant(session.orgId, tenantId);
+  const before = await assertOrgOwnsTenant(session.orgId, tenantId);
   const name = str(formData, "name");
   const phone = str(formData, "phone");
   const email = str(formData, "email");
   const nid = str(formData, "nid");
   const moveInDate = str(formData, "moveInDate");
+  const moveOutDate = str(formData, "moveOutDate");
   const notes = str(formData, "notes");
   const active = formData.get("active") === "on";
   await db
@@ -74,13 +77,23 @@ export async function updateTenant(tenantId: string, formData: FormData) {
       email: email || null,
       nid: nid || null,
       moveInDate: moveInDate || null,
+      moveOutDate: moveOutDate || null,
       notes: notes || null,
       active,
     })
     .where(eq(tenants.id, tenantId));
+
+  // Move-in/out dates directly change which months this tenant is attributed to —
+  // recalc this month so the change is reflected immediately rather than waiting
+  // for an unrelated visit to Bills to trigger it.
+  if (before.moveInDate !== (moveInDate || null) || before.moveOutDate !== (moveOutDate || null)) {
+    await recalcAdjustmentForFlatMonth(before.flatId, firstOfMonth());
+  }
+
   revalidatePath("/tenants");
   revalidatePath(`/tenants/${tenantId}`);
   revalidatePath("/dashboard");
+  revalidatePath("/bills");
 }
 
 // Spec #8: prefer "mark as moved out" over destroying a tenant that has billing
@@ -89,7 +102,9 @@ export async function updateTenant(tenantId: string, formData: FormData) {
 export async function markTenantMovedOut(tenantId: string) {
   const session = await requireOrg();
   const tenant = await assertOrgOwnsTenant(session.orgId, tenantId);
-  await db.update(tenants).set({ active: false }).where(eq(tenants.id, tenantId));
+  const today = new Date().toISOString().slice(0, 10);
+  await db.update(tenants).set({ active: false, moveOutDate: today }).where(eq(tenants.id, tenantId));
+  await recalcAdjustmentForFlatMonth(tenant.flatId, firstOfMonth());
   await db.insert(notifications).values({
     id: id("ntf"),
     orgId: session.orgId,
@@ -100,6 +115,7 @@ export async function markTenantMovedOut(tenantId: string) {
   revalidatePath("/tenants");
   revalidatePath(`/tenants/${tenantId}`);
   revalidatePath("/dashboard");
+  revalidatePath("/bills");
 }
 
 // True permanent delete — only for genuine mistakes (spec #35). Cascades to
