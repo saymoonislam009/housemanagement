@@ -1,4 +1,5 @@
-import { getOrgContext, getHouseSummaryForMonth, getYearSummary } from "@/lib/queries";
+import { getOrgContext, getHouseSummaryForMonth, getYearSummary, getTenantsByIds } from "@/lib/queries";
+import { ensureAdjustmentsForMonth } from "@/lib/actions/billing";
 import { getDict } from "@/lib/i18n";
 import { PageHeader, Card, StatusPill } from "@/components/ui";
 import { MonthSwitcher } from "@/components/MonthSwitcher";
@@ -14,7 +15,10 @@ export default async function HistoryPage({ searchParams }: { searchParams: { mo
   const showYear = searchParams.view === "year";
   const year = month.slice(0, 4);
 
+  await ensureAdjustmentsForMonth(org.id, month);
   const summary = await getHouseSummaryForMonth(org.id, month);
+  const historyTenants = await getTenantsByIds(summary.adjustments.map((a) => (a as any).tenantId));
+  const tenantById = new Map(historyTenants.map((t) => [t.id, t]));
   const yearRows = showYear ? await getYearSummary(org.id, year) : [];
 
   return (
@@ -86,12 +90,13 @@ export default async function HistoryPage({ searchParams }: { searchParams: { mo
             </Card>
           </div>
 
-          <Card className="!p-0 overflow-hidden">
+          <Card className="hidden overflow-hidden !p-0 sm:block">
             <div className="overflow-x-auto scrollbar-thin">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-ink-900/10 text-left text-xs text-ink-600">
                     <th className="px-4 py-3 font-medium">{t("flat_name")}</th>
+                    <th className="px-4 py-3 font-medium">{t("tenants_title")}</th>
                     <th className="px-4 py-3 text-right font-medium">{t("rent")}</th>
                     <th className="px-4 py-3 text-right font-medium">{t("bills")}</th>
                     <th className="px-4 py-3 text-right font-medium">{t("total_due")}</th>
@@ -103,18 +108,20 @@ export default async function HistoryPage({ searchParams }: { searchParams: { mo
                 <tbody>
                   {summary.adjustments.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-10 text-center text-sm text-ink-600">
+                      <td colSpan={8} className="px-4 py-10 text-center text-sm text-ink-600">
                         {t("no_flats")}
                       </td>
                     </tr>
                   ) : (
                     summary.adjustments.map((a) => {
                       const remaining = Math.max(0, parseFloat(a.totalDue) - parseFloat(a.totalPaid));
+                      const tenant = (a as any).tenantId ? tenantById.get((a as any).tenantId) : undefined;
                       return (
                         <tr key={a.id} className="border-b border-ink-900/5 last:border-0 hover:bg-ink-900/[0.02]">
                           <td className="px-4 py-3 font-medium text-ink-900">
                             {a.propertyName} · {a.flatName}
                           </td>
+                          <td className="px-4 py-3 text-ink-700">{tenant ? tenant.name : t("vacant")}</td>
                           <td className="tabular px-4 py-3 text-right text-ink-700">{money(a.rentAmount, org.currency)}</td>
                           <td className="tabular px-4 py-3 text-right text-ink-700">{money(a.billsAmount, org.currency)}</td>
                           <td className="tabular px-4 py-3 text-right font-medium text-ink-900">{money(a.totalDue, org.currency)}</td>
@@ -133,6 +140,47 @@ export default async function HistoryPage({ searchParams }: { searchParams: { mo
               </table>
             </div>
           </Card>
+
+          {/* Mobile cards */}
+          <div className="space-y-2 sm:hidden">
+            {summary.adjustments.length === 0 ? (
+              <p className="py-10 text-center text-sm text-ink-600">{t("no_flats")}</p>
+            ) : (
+              summary.adjustments.map((a) => {
+                const remaining = Math.max(0, parseFloat(a.totalDue) - parseFloat(a.totalPaid));
+                const tenant = (a as any).tenantId ? tenantById.get((a as any).tenantId) : undefined;
+                return (
+                  <Card key={a.id} className="!p-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-ink-950">
+                          {a.propertyName} · {a.flatName}
+                        </p>
+                        <p className="text-xs text-ink-600">{tenant ? tenant.name : t("vacant")}</p>
+                      </div>
+                      <StatusPill status={a.status} labels={{ unpaid: t("unpaid"), partial: t("partial"), paid: t("fully_paid") }} />
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                      <div>
+                        <p className="tabular text-sm font-medium text-ink-900">{money(a.totalDue, org.currency)}</p>
+                        <p className="text-[10px] text-ink-600">{t("total_due")}</p>
+                      </div>
+                      <div>
+                        <p className="tabular text-sm font-medium text-okay">{money(a.totalPaid, org.currency)}</p>
+                        <p className="text-[10px] text-ink-600">{t("paid")}</p>
+                      </div>
+                      <div>
+                        <p className={`tabular text-sm font-medium ${remaining > 0 ? "text-clay-500" : "text-ink-600"}`}>
+                          {money(remaining, org.currency)}
+                        </p>
+                        <p className="text-[10px] text-ink-600">{t("balance")}</p>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })
+            )}
+          </div>
           <p className="mt-3 text-center text-xs text-ink-500">
             <Link href="/bills" className="underline hover:text-ink-800">
               Edit this month's bills

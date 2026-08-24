@@ -259,6 +259,39 @@ export async function ensureAdjustmentsForMonth(orgId: string, month: string) {
   await Promise.all(rows.map((flat) => recalcAdjustmentForFlatMonth(flat.id, month)));
 }
 
+// One-time (or run-whenever-needed) repair tool: refreshes every flat's entire
+// bill history using today's calculation logic. Needed because past fixes to the
+// billing formula only take effect on rows that get recalculated — a month you
+// never revisited after a fix keeps its old, possibly-wrong numbers forever
+// otherwise. Only the EARLIEST existing month per flat needs to be recalculated
+// directly; recalcAdjustmentForFlatMonth cascades forward through every later
+// month on its own.
+export async function recalculateAllHistory() {
+  const session = await requireOrg();
+  const orgId = session.orgId;
+
+  const flatRows = await db
+    .select({ id: flats.id })
+    .from(flats)
+    .innerJoin(properties, eq(properties.id, flats.propertyId))
+    .where(eq(properties.orgId, orgId));
+
+  for (const flat of flatRows) {
+    const earliest = await db.query.monthlyAdjustments.findFirst({
+      where: eq(monthlyAdjustments.flatId, flat.id),
+      orderBy: asc(monthlyAdjustments.month),
+    });
+    if (earliest) {
+      await recalcAdjustmentForFlatMonth(flat.id, earliest.month);
+    }
+  }
+
+  revalidatePath("/bills");
+  revalidatePath("/history");
+  revalidatePath("/dashboard");
+  revalidatePath("/tenants");
+}
+
 export async function setCategoryOverride(adjustmentId: string, formData: FormData) {
   const session = await requireOrg();
   const adj = await assertOrgOwnsAdjustment(session.orgId, adjustmentId);

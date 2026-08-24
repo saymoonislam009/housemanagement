@@ -1,8 +1,8 @@
 "use server";
 
 import { db } from "@/db";
-import { tenants, flats, notifications } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { tenants, flats, monthlyAdjustments, notifications } from "@/db/schema";
+import { and, asc, eq } from "drizzle-orm";
 import { id } from "@/lib/id";
 import { requireOrg, str, assertOrgOwnsFlat, assertOrgOwnsTenant } from "./helpers";
 import { recalcAdjustmentForFlatMonth } from "./billing";
@@ -123,8 +123,24 @@ export async function markTenantMovedOut(tenantId: string) {
 // not the tenant record, so it is preserved either way.
 export async function deleteTenant(tenantId: string) {
   const session = await requireOrg();
-  await assertOrgOwnsTenant(session.orgId, tenantId);
+  const tenant = await assertOrgOwnsTenant(session.orgId, tenantId);
+
+  // Deleting a tenant nulls out tenant_id on their historical bills automatically
+  // (FK "on delete set null"), but that alone leaves the old rent/bills/total
+  // numbers stale — they need an actual recalculation, which will correctly zero
+  // out any month this tenant's deletion leaves vacant.
+  const affectedMonth = await db.query.monthlyAdjustments.findFirst({
+    where: eq(monthlyAdjustments.tenantId, tenantId),
+    orderBy: asc(monthlyAdjustments.month),
+  });
+
   await db.delete(tenants).where(eq(tenants.id, tenantId));
+
+  if (affectedMonth) {
+    await recalcAdjustmentForFlatMonth(tenant.flatId, affectedMonth.month);
+  }
+
   revalidatePath("/tenants");
   revalidatePath("/dashboard");
+  revalidatePath("/bills");
 }

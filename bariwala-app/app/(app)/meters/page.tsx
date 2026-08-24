@@ -7,6 +7,7 @@ import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { createMeter, updateMeter, deleteMeter, deleteReading } from "@/lib/actions/meters";
 import { ReadingForm } from "@/components/ReadingForm";
 import { AllocationAdvanced } from "@/components/AllocationAdvanced";
+import { MonthSwitcher } from "@/components/MonthSwitcher";
 import { Icon, paths } from "@/components/icons";
 import { money, firstOfMonth, monthLabel, shortDate } from "@/lib/format";
 
@@ -18,11 +19,11 @@ const typeIcon: Record<string, string> = {
   other: paths.gauge,
 };
 
-export default async function MetersPage() {
+export default async function MetersPage({ searchParams }: { searchParams: { month?: string } }) {
   const { org } = await getOrgContext();
   const t = getDict();
   const dLocale = org.language === "bn" ? "bn-BD" : "en-US";
-  const month = firstOfMonth();
+  const month = searchParams.month || firstOfMonth();
 
   const [meters, properties] = await Promise.all([getMetersForOrg(org.id), getPropertiesWithFlats(org.id)]);
   const flatOptions = properties.flatMap((p) => p.flats.map((f) => ({ ...f, propertyName: p.name, propertyId: p.id })));
@@ -44,7 +45,9 @@ export default async function MetersPage() {
         title={t("meters_title")}
         sub={t("meters_sub")}
         action={
-          <Modal title={t("add_meter")} trigger={<Button variant="primary">{t("add_meter")}</Button>}>
+          <div className="flex flex-wrap items-center gap-2">
+            <MonthSwitcher month={month} locale={org.language} />
+            <Modal title={t("add_meter")} trigger={<Button variant="primary">{t("add_meter")}</Button>}>
             <form action={createMeter} className="space-y-4">
               <Field label={t("properties_title")}>
                 <Select name="propertyId" required defaultValue="">
@@ -109,6 +112,7 @@ export default async function MetersPage() {
               <CloseOnSuccess />
             </form>
           </Modal>
+          </div>
         }
       />
 

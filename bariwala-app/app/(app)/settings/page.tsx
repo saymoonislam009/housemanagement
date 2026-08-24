@@ -2,6 +2,7 @@ import { getOrgContext } from "@/lib/queries";
 import { getDict } from "@/lib/i18n";
 import { PageHeader, Card, Field, Input, Select, Button } from "@/components/ui";
 import { updateOrgSettings, updateBillingDefaults, setLanguage, setTheme } from "@/lib/actions/settings";
+import { recalculateAllHistory } from "@/lib/actions/billing";
 import { getTheme } from "@/lib/theme";
 import { InstallApp } from "@/components/InstallApp";
 
@@ -97,6 +98,20 @@ export default async function SettingsPage() {
           </div>
         </Card>
       </div>
+
+      <Card className="mt-4">
+        <h2 className="mb-2 text-sm font-semibold text-ink-800">Fix stale bill totals</h2>
+        <p className="mb-4 text-sm text-ink-600">
+          If a month's numbers look wrong or out of date — especially after a tenant change, a deleted tenant, or an
+          old bill you haven't opened in a while — this recalculates every month for every flat from scratch using
+          today's numbers. Safe to run any time; it never deletes payments or notes.
+        </p>
+        <form action={recalculateAllHistory}>
+          <Button type="submit" variant="ghost">
+            Recalculate all bills
+          </Button>
+        </form>
+      </Card>
     </div>
   );
 }
