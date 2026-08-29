@@ -27,6 +27,9 @@ export default async function DashboardPage() {
     .filter((e) => e.spentOn.slice(0, 7) === month.slice(0, 7))
     .reduce((s, e) => s + parseFloat(e.amount), 0);
 
+  const rentDueDay = (org.settings as any)?.rentDueDay ?? 5;
+  const daysOverdue = Math.max(0, new Date().getDate() - rentDueDay);
+
   const stats = [
     { label: t("stat_collected"), value: money(collected, org.currency), icon: paths.wallet, tone: "text-okay" },
     { label: t("stat_due"), value: money(due, org.currency), icon: paths.receipt, tone: "text-clay-500" },
@@ -68,9 +71,16 @@ export default async function DashboardPage() {
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-clay-500/15 text-clay-500">
                   <Icon path={paths.receipt} className="h-4 w-4" />
                 </div>
-                <p className="text-sm text-ink-900">
-                  <span className="font-semibold">{attention.unpaidCount}</span> {t("unpaid_flats_notice")}
-                </p>
+                <div>
+                  <p className="text-sm text-ink-900">
+                    <span className="font-semibold">{attention.unpaidCount}</span> {t("unpaid_flats_notice")}
+                  </p>
+                  {daysOverdue > 0 && (
+                    <p className="mt-0.5 text-xs text-clay-500">
+                      {daysOverdue} day{daysOverdue > 1 ? "s" : ""} past the {rentDueDay}th rent due date
+                    </p>
+                  )}
+                </div>
               </Link>
             )}
             {attention.missingReadings > 0 && (

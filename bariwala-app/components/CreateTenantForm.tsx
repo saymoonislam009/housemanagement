@@ -77,6 +77,9 @@ export function CreateTenantForm({
           <Field label={labels.moveInDate}>
             <Input name="moveInDate" type="date" />
           </Field>
+          <Field label="Security deposit" hint="Advance/deposit collected, if any">
+            <Input name="securityDeposit" type="number" step="0.01" min="0" defaultValue="0" />
+          </Field>
         </div>
       </details>
 

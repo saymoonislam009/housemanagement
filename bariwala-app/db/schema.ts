@@ -105,6 +105,13 @@ export const tenants = pgTable("tenants", {
   nid: text("nid"),
   moveInDate: date("move_in_date"),
   moveOutDate: date("move_out_date"),
+  // Advance/security deposit — near-universal practice for BD rentals (typically
+  // 2-3 months' rent collected up front). Tracked separately from monthly bills
+  // since it's not "rent owed", it's a refundable deposit held by the owner.
+  securityDeposit: numeric("security_deposit", { precision: 12, scale: 2 }).notNull().default("0"),
+  depositReturned: boolean("deposit_returned").notNull().default(false),
+  depositReturnedAmount: numeric("deposit_returned_amount", { precision: 12, scale: 2 }),
+  depositReturnedOn: date("deposit_returned_on"),
   active: boolean("active").notNull().default(true),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

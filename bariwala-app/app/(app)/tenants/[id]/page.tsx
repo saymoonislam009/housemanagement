@@ -1,14 +1,16 @@
 import { getOrgContext, getTenant, getPaymentsForOrg, getTenantMonthlyHistory, getTenantDocuments } from "@/lib/queries";
 import { getDict } from "@/lib/i18n";
-import { PageHeader, Card, Field, Input, Textarea, Button, StatusPill } from "@/components/ui";
+import { PageHeader, Card, Field, Input, Button, StatusPill } from "@/components/ui";
 import { Modal } from "@/components/Modal";
-import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
+import { CloseOnSuccess } from "@/components/CloseOnSuccess";
+import { EditTenantForm } from "@/components/EditTenantForm";
 import { MarkMovedOutButton } from "@/components/MarkMovedOutButton";
 import { DocumentUploadForm } from "@/components/DocumentUploadForm";
 import { deleteTenantDocument } from "@/lib/actions/documents";
-import { updateTenant, deleteTenant, markTenantMovedOut } from "@/lib/actions/tenants";
+import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
+import { deleteTenant, markTenantMovedOut, returnDeposit } from "@/lib/actions/tenants";
 import { Icon, paths } from "@/components/icons";
-import { money, shortDate, monthLabel } from "@/lib/format";
+import { money, shortDate, monthLabel, whatsAppLink } from "@/lib/format";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
@@ -24,6 +26,16 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
     getTenantDocuments(tenant.id),
   ]);
 
+  const deposit = parseFloat(tenant.securityDeposit ?? "0");
+  const latestUnpaid = history.find((h) => h.status !== "paid");
+  const reminderMessage = latestUnpaid
+    ? `Hi ${tenant.name}, this is a reminder that ${money(
+        Math.max(0, parseFloat(latestUnpaid.totalDue) - parseFloat(latestUnpaid.totalPaid)),
+        org.currency
+      )} is still due for ${monthLabel(latestUnpaid.month, dLocale)} (${tenant.propertyName} · ${tenant.flatName}). Thank you!`
+    : `Hi ${tenant.name}, just checking in about your rent at ${tenant.propertyName} · ${tenant.flatName}. Thank you!`;
+  const waLink = whatsAppLink(tenant.phone, reminderMessage);
+
   return (
     <div>
       <Link href="/tenants" className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-ink-600 hover:text-ink-900">
@@ -34,7 +46,18 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
         title={tenant.name}
         sub={`${tenant.propertyName} · ${tenant.flatName} (${tenant.floor})`}
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {waLink && (
+              <a
+                href={waLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-okay/30 px-3 py-2 text-sm font-medium text-okay hover:bg-okay/10"
+              >
+                <Icon path={paths.wallet} className="h-4 w-4" />
+                WhatsApp
+              </a>
+            )}
             {tenant.active && (
               <MarkMovedOutButton
                 action={markTenantMovedOut.bind(null, tenant.id)}
@@ -49,80 +72,93 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <h2 className="mb-4 text-sm font-semibold text-ink-800">{t("basic_information")}</h2>
-          <form action={updateTenant.bind(null, tenant.id)} className="grid gap-4 sm:grid-cols-2">
-            <Field label={t("tenant_name")}>
-              <Input name="name" defaultValue={tenant.name} required />
-            </Field>
-            <Field label={t("phone")}>
-              <Input name="phone" defaultValue={tenant.phone ?? ""} type="tel" />
-            </Field>
-            <Field label={t("email")}>
-              <Input name="email" defaultValue={tenant.email ?? ""} type="email" />
-            </Field>
-            <Field label={t("nid")}>
-              <Input name="nid" defaultValue={tenant.nid ?? ""} />
-            </Field>
-            <Field label={t("move_in_date")}>
-              <Input name="moveInDate" type="date" defaultValue={tenant.moveInDate ?? ""} />
-            </Field>
-            <Field label="Move-out date" hint="Only set if they've actually left">
-              <Input name="moveOutDate" type="date" defaultValue={tenant.moveOutDate ?? ""} />
-            </Field>
-            <label className="flex items-center gap-2 self-end pb-2 text-sm text-ink-800">
-              <input type="checkbox" name="active" defaultChecked={tenant.active} className="h-4 w-4 rounded border-ink-900/20" />
-              {t("status_active")}
-            </label>
-            <div className="sm:col-span-2">
-              <Field label={t("note")}>
-                <Textarea name="notes" defaultValue={tenant.notes ?? ""} rows={3} />
-              </Field>
-            </div>
-            <div className="flex items-center gap-3 sm:col-span-2">
-              <Button type="submit">{t("save_changes")}</Button>
-              <details className="ml-auto">
-                <summary className="cursor-pointer list-none text-xs text-clay-500/70 hover:text-clay-500">
-                  {t("permanently_delete")}
-                </summary>
-                <div className="mt-2">
-                  <ConfirmDeleteButton
-                    action={deleteTenant.bind(null, tenant.id)}
-                    confirmText={t("confirm_delete")}
-                    className="flex items-center gap-1.5 rounded-lg border border-clay-500/30 px-3 py-1.5 text-xs font-medium text-clay-500 hover:bg-clay-500/10"
-                  />
-                </div>
-              </details>
-            </div>
-          </form>
+          <EditTenantForm
+            tenant={tenant}
+            onDelete={deleteTenant.bind(null, tenant.id)}
+            labels={{
+              basicInfo: t("basic_information"),
+              tenantName: t("tenant_name"),
+              phone: t("phone"),
+              email: t("email"),
+              nid: t("nid"),
+              moveInDate: t("move_in_date"),
+              active: t("status_active"),
+              note: t("note"),
+              save: t("save_changes"),
+              permanentlyDelete: t("permanently_delete"),
+              confirmDelete: t("confirm_delete"),
+            }}
+          />
         </Card>
 
-        <Card>
-          <h2 className="mb-3 text-sm font-semibold text-ink-800">{t("rent_amount")}</h2>
-          <p className="tabular font-display text-2xl font-semibold text-ink-950">{money(tenant.rentAmount, org.currency)}</p>
-          <Link
-            href={`/tenants/${tenant.id}/statement`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-brass-600 hover:underline"
-          >
-            <Icon path={paths.receipt} className="h-3.5 w-3.5" />
-            View this month's statement
-          </Link>
-          <div className="mt-6 border-t border-ink-900/8 pt-4">
-            <h3 className="mb-3 text-sm font-semibold text-ink-800">{t("payments_title")}</h3>
-            {payments.length === 0 ? (
-              <p className="text-sm text-ink-600">{t("nothing_yet")}</p>
-            ) : (
-              <div className="space-y-2">
-                {payments.slice(0, 8).map((p) => (
-                  <div key={p.id} className="flex items-center justify-between text-sm">
-                    <span className="text-ink-600">{shortDate(p.paidOn, dLocale)}</span>
-                    <span className="tabular font-medium text-okay">+{money(p.amount, org.currency)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </Card>
+        <div className="space-y-4">
+          <Card>
+            <h2 className="mb-3 text-sm font-semibold text-ink-800">{t("rent_amount")}</h2>
+            <p className="tabular font-display text-2xl font-semibold text-ink-950">{money(tenant.rentAmount, org.currency)}</p>
+            <Link
+              href={`/tenants/${tenant.id}/statement`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-brass-600 hover:underline"
+            >
+              <Icon path={paths.receipt} className="h-3.5 w-3.5" />
+              View this month's statement
+            </Link>
+            <div className="mt-6 border-t border-ink-900/8 pt-4">
+              <h3 className="mb-3 text-sm font-semibold text-ink-800">{t("payments_title")}</h3>
+              {payments.length === 0 ? (
+                <p className="text-sm text-ink-600">{t("nothing_yet")}</p>
+              ) : (
+                <div className="space-y-2">
+                  {payments.slice(0, 8).map((p) => (
+                    <div key={p.id} className="flex items-center justify-between text-sm">
+                      <span className="text-ink-600">{shortDate(p.paidOn, dLocale)}</span>
+                      <span className="tabular font-medium text-okay">+{money(p.amount, org.currency)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {deposit > 0 && (
+            <Card>
+              <h2 className="mb-3 text-sm font-semibold text-ink-800">Security Deposit</h2>
+              <p className="tabular font-display text-xl font-semibold text-ink-950">{money(deposit, org.currency)}</p>
+              {tenant.depositReturned ? (
+                <p className="mt-2 text-xs text-okay">
+                  Returned {money(tenant.depositReturnedAmount ?? "0", org.currency)} on{" "}
+                  {tenant.depositReturnedOn ? shortDate(tenant.depositReturnedOn, dLocale) : "—"}
+                </p>
+              ) : (
+                <>
+                  <p className="mt-1 text-xs text-ink-600">Held by you, not yet returned</p>
+                  <Modal
+                    title="Return deposit"
+                    trigger={
+                      <Button variant="ghost" className="mt-3 w-full !py-1.5 text-xs">
+                        Mark deposit as returned
+                      </Button>
+                    }
+                  >
+                    <form action={returnDeposit.bind(null, tenant.id)} className="space-y-4">
+                      <Field label="Amount returned">
+                        <Input name="amount" type="number" step="0.01" min="0" defaultValue={deposit} required />
+                      </Field>
+                      <Field label="Date">
+                        <Input name="returnedOn" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required />
+                      </Field>
+                      <Button type="submit" className="w-full">
+                        {t("save")}
+                      </Button>
+                      <CloseOnSuccess />
+                    </form>
+                  </Modal>
+                </>
+              )}
+            </Card>
+          )}
+        </div>
       </div>
 
       <div className="mt-4">

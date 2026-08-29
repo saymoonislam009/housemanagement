@@ -60,12 +60,15 @@ export async function updateBillingDefaults(formData: FormData) {
   const defaultUnitRate = parseFloat(String(formData.get("defaultUnitRate") ?? "0")) || 0;
   const defaultMeterCharge = parseFloat(String(formData.get("defaultMeterCharge") ?? "0")) || 0;
   const defaultOtherCharge = parseFloat(String(formData.get("defaultOtherCharge") ?? "0")) || 0;
+  let rentDueDay = parseInt(String(formData.get("rentDueDay") ?? "5"), 10) || 5;
+  rentDueDay = Math.min(28, Math.max(1, rentDueDay)); // keep it a day every month actually has
   await db
     .update(organizations)
-    .set({ settings: { ...currentSettings, defaultUnitRate, defaultMeterCharge, defaultOtherCharge } })
+    .set({ settings: { ...currentSettings, defaultUnitRate, defaultMeterCharge, defaultOtherCharge, rentDueDay } })
     .where(eq(organizations.id, session.orgId));
   revalidatePath("/settings");
   revalidatePath("/meters");
+  revalidatePath("/dashboard");
 }
 
 export async function markAllNotificationsRead() {

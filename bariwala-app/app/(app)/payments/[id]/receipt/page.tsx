@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { flats, properties, tenants, payments as paymentsTable } from "@/db/schema";
 import { eq, and, lte, asc } from "drizzle-orm";
 import { PrintButton } from "@/components/PrintButton";
-import { money, shortDate, monthLabel } from "@/lib/format";
+import { money, shortDate, monthLabel, whatsAppLink } from "@/lib/format";
 import Link from "next/link";
 
 const methodLabel: Record<string, string> = {
@@ -50,13 +50,28 @@ export default async function ReceiptPage({ params }: { params: { id: string } }
     remaining = Math.max(0, parseFloat(adj.totalDue) - cumulativePaid);
   }
 
+  const waMessage = `Hi ${tenant?.name ?? ""}, thank you for your payment of ${money(payment.amount, org.currency)} on ${shortDate(payment.paidOn, dLocale)}${adj ? `. Remaining due: ${money(remaining, org.currency)}` : ""}.`;
+  const waLink = whatsAppLink(tenant?.phone, waMessage);
+
   return (
     <div className="mx-auto max-w-md py-6">
-      <div className="mb-4 flex items-center justify-between print:hidden">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 print:hidden">
         <Link href="/payments" className="text-xs font-medium text-ink-600 hover:text-ink-900">
           ← Back
         </Link>
-        <PrintButton label="Print receipt" />
+        <div className="flex items-center gap-2">
+          {waLink && (
+            <a
+              href={waLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg border border-okay/30 px-4 py-2 text-sm font-medium text-okay hover:bg-okay/10"
+            >
+              WhatsApp
+            </a>
+          )}
+          <PrintButton label="Print receipt" />
+        </div>
       </div>
 
       <div className="card p-8">

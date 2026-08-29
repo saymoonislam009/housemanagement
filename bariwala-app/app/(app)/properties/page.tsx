@@ -1,10 +1,10 @@
 import { getOrgContext, getPropertiesWithFlats } from "@/lib/queries";
 import { getDict } from "@/lib/i18n";
-import { PageHeader, Card, Field, Input, Button } from "@/components/ui";
+import { PageHeader, Card, Button } from "@/components/ui";
 import { Modal } from "@/components/Modal";
-import { CloseOnSuccess } from "@/components/CloseOnSuccess";
+import { PropertyForm } from "@/components/PropertyForm";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
-import { createProperty, deleteProperty } from "@/lib/actions/properties";
+import { deleteProperty } from "@/lib/actions/properties";
 import { Icon, paths } from "@/components/icons";
 import Link from "next/link";
 
@@ -23,17 +23,11 @@ export default async function PropertiesPage() {
         </div>
         <h1 className="font-display text-2xl font-semibold text-ink-950">{t("setup_house_title")}</h1>
         <p className="mt-2 text-sm text-ink-600">{t("setup_house_sub")}</p>
-        <form action={createProperty} className="mt-6 space-y-4 text-left">
-          <Field label={t("property_name")} hint={t("property_name_hint")}>
-            <Input name="name" required autoFocus placeholder="Rahman House" />
-          </Field>
-          <Field label={t("address")}>
-            <Input name="address" />
-          </Field>
-          <Button type="submit" className="w-full">
-            {t("get_started")}
-          </Button>
-        </form>
+        <div className="mt-6 text-left">
+          <PropertyForm
+            labels={{ name: t("property_name"), nameHint: t("property_name_hint"), address: t("address"), save: t("get_started") }}
+          />
+        </div>
       </div>
     );
   }
@@ -45,18 +39,9 @@ export default async function PropertiesPage() {
         sub={t("properties_sub")}
         action={
           <Modal title={t("add_property")} trigger={<Button variant="primary">{t("add_property_cta")}</Button>}>
-            <form action={createProperty} className="space-y-4">
-              <Field label={t("property_name")} hint={t("property_name_hint")}>
-                <Input name="name" required autoFocus />
-              </Field>
-              <Field label={t("address")}>
-                <Input name="address" />
-              </Field>
-              <Button type="submit" className="w-full">
-                {t("save")}
-              </Button>
-              <CloseOnSuccess />
-            </form>
+            <PropertyForm
+              labels={{ name: t("property_name"), nameHint: t("property_name_hint"), address: t("address"), save: t("save") }}
+            />
           </Modal>
         }
       />
@@ -71,7 +56,22 @@ export default async function PropertiesPage() {
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brass-400/20 text-brass-600">
                   <Icon path={paths.building} className="h-5 w-5" />
                 </div>
-                <div className="relative z-10">
+                <div className="relative z-10 flex items-center gap-1">
+                  <Modal
+                    title={t("edit")}
+                    trigger={
+                      <button className="rounded-lg p-1.5 text-ink-600/50 hover:bg-ink-900/5">
+                        <Icon path={paths.edit} className="h-4 w-4" />
+                      </button>
+                    }
+                  >
+                    <PropertyForm
+                      propertyId={p.id}
+                      defaultName={p.name}
+                      defaultAddress={p.address ?? ""}
+                      labels={{ name: t("property_name"), address: t("address"), save: t("save") }}
+                    />
+                  </Modal>
                   <ConfirmDeleteButton action={deleteProperty.bind(null, p.id)} confirmText={t("confirm_delete_property")} />
                 </div>
               </div>

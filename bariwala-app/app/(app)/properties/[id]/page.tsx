@@ -1,10 +1,10 @@
 import { getOrgContext, getProperty } from "@/lib/queries";
 import { getDict } from "@/lib/i18n";
-import { PageHeader, Card, Field, Input, Button, EmptyState } from "@/components/ui";
+import { PageHeader, Card, Button, EmptyState } from "@/components/ui";
 import { Modal } from "@/components/Modal";
-import { CloseOnSuccess } from "@/components/CloseOnSuccess";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
-import { createFlat, updateFlat, deleteFlat } from "@/lib/actions/properties";
+import { deleteFlat } from "@/lib/actions/properties";
+import { FlatForm } from "@/components/FlatForm";
 import { CreateTenantForm } from "@/components/CreateTenantForm";
 import { Icon, paths } from "@/components/icons";
 import { money } from "@/lib/format";
@@ -17,6 +17,17 @@ export default async function PropertyDetailPage({ params }: { params: { id: str
   const property = await getProperty(org.id, params.id);
   if (!property) notFound();
 
+  const flatLabels = {
+    flatName: t("flat_name"),
+    flatNameHint: t("flat_name_hint"),
+    floor: t("floor"),
+    floorHint: t("floor_hint"),
+    rent: t("rent_amount"),
+    serviceCharge: "Service charge",
+    active: t("status_active"),
+    save: t("save"),
+  };
+
   return (
     <div>
       <Link href="/properties" className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-ink-600 hover:text-ink-900">
@@ -28,24 +39,7 @@ export default async function PropertyDetailPage({ params }: { params: { id: str
         sub={property.address ?? undefined}
         action={
           <Modal title={t("add_flat")} trigger={<Button variant="primary">{t("add_flat")}</Button>}>
-            <form action={createFlat.bind(null, property.id)} className="space-y-4">
-              <Field label={t("flat_name")}>
-                <Input name="name" required autoFocus placeholder="3B" />
-              </Field>
-              <Field label={t("floor")}>
-                <Input name="floor" required placeholder="3rd Floor" />
-              </Field>
-              <Field label={t("rent_amount")}>
-                <Input name="rentAmount" type="number" step="0.01" min="0" required />
-              </Field>
-              <Field label="Service charge" hint="Optional recurring monthly charge, separate from rent">
-                <Input name="serviceCharge" type="number" step="0.01" min="0" defaultValue="0" />
-              </Field>
-              <Button type="submit" className="w-full">
-                {t("save")}
-              </Button>
-              <CloseOnSuccess />
-            </form>
+            <FlatForm propertyId={property.id} labels={flatLabels} />
           </Modal>
         }
       />
@@ -114,28 +108,16 @@ export default async function PropertyDetailPage({ params }: { params: { id: str
                     </Button>
                   }
                 >
-                  <form action={updateFlat.bind(null, flat.id, property.id)} className="space-y-4">
-                    <Field label={t("flat_name")}>
-                      <Input name="name" defaultValue={flat.name} required />
-                    </Field>
-                    <Field label={t("floor")}>
-                      <Input name="floor" defaultValue={flat.floor} required />
-                    </Field>
-                    <Field label={t("rent_amount")}>
-                      <Input name="rentAmount" type="number" step="0.01" min="0" defaultValue={flat.rentAmount} required />
-                    </Field>
-                    <Field label="Service charge">
-                      <Input name="serviceCharge" type="number" step="0.01" min="0" defaultValue={flat.serviceCharge} />
-                    </Field>
-                    <label className="flex items-center gap-2 text-sm text-ink-800">
-                      <input type="checkbox" name="active" defaultChecked={flat.active} className="h-4 w-4 rounded border-ink-900/20" />
-                      {t("status_active")}
-                    </label>
-                    <Button type="submit" className="w-full">
-                      {t("save")}
-                    </Button>
-                    <CloseOnSuccess />
-                  </form>
+                  <FlatForm
+                    propertyId={property.id}
+                    flatId={flat.id}
+                    defaultName={flat.name}
+                    defaultFloor={flat.floor}
+                    defaultRent={flat.rentAmount}
+                    defaultServiceCharge={flat.serviceCharge}
+                    defaultActive={flat.active}
+                    labels={flatLabels}
+                  />
                 </Modal>
                 <ConfirmDeleteButton
                   action={deleteFlat.bind(null, flat.id, property.id)}

@@ -1,15 +1,14 @@
 import { getOrgContext, getMetersForOrg, getPropertiesWithFlats, getPreviousReadingValue, getReadingForMonth, getReadingHistory } from "@/lib/queries";
 import { getDict } from "@/lib/i18n";
-import { PageHeader, Card, Field, Input, Select, Button, EmptyState, StatusPill } from "@/components/ui";
+import { PageHeader, Card, Button, EmptyState } from "@/components/ui";
 import { Modal } from "@/components/Modal";
-import { CloseOnSuccess } from "@/components/CloseOnSuccess";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
-import { createMeter, updateMeter, deleteMeter, deleteReading } from "@/lib/actions/meters";
+import { deleteMeter, deleteReading } from "@/lib/actions/meters";
+import { MeterForm } from "@/components/MeterForm";
 import { ReadingForm } from "@/components/ReadingForm";
-import { AllocationAdvanced } from "@/components/AllocationAdvanced";
 import { MonthSwitcher } from "@/components/MonthSwitcher";
 import { Icon, paths } from "@/components/icons";
-import { money, firstOfMonth, monthLabel, shortDate } from "@/lib/format";
+import { money, firstOfMonth, monthLabel } from "@/lib/format";
 
 const typeIcon: Record<string, string> = {
   electricity: paths.zap,
@@ -39,6 +38,26 @@ export default async function MetersPage({ searchParams }: { searchParams: { mon
     })
   );
 
+  const meterFormLabels = {
+    property: t("properties_title"),
+    selectFlat: t("select_flat"),
+    optional: t("optional"),
+    sharedMeter: t("shared_meter"),
+    type: t("meter_type"),
+    electricity: t("electricity"),
+    water: t("water"),
+    gas: t("gas"),
+    pump: t("pump"),
+    other: t("other"),
+    label: t("meter_label"),
+    unitRate: t("unit_rate"),
+    meterCharge: t("meter_charge"),
+    otherCharge: t("other_charge"),
+    startingReading: t("starting_reading"),
+    active: t("status_active"),
+    save: t("save"),
+  };
+
   return (
     <div>
       <PageHeader
@@ -48,70 +67,17 @@ export default async function MetersPage({ searchParams }: { searchParams: { mon
           <div className="flex flex-wrap items-center gap-2">
             <MonthSwitcher month={month} locale={org.language} />
             <Modal title={t("add_meter")} trigger={<Button variant="primary">{t("add_meter")}</Button>}>
-            <form action={createMeter} className="space-y-4">
-              <Field label={t("properties_title")}>
-                <Select name="propertyId" required defaultValue="">
-                  <option value="" disabled>
-                    {t("properties_title")}
-                  </option>
-                  {properties.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label={`${t("select_flat")} (${t("optional")} — ${t("shared_meter")})`}>
-                <Select name="flatId" defaultValue="">
-                  <option value="">{t("shared_meter")} (e.g. pump)</option>
-                  {flatOptions.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.propertyName} · {f.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label={t("meter_type")}>
-                <Select name="type" defaultValue="electricity">
-                  <option value="electricity">{t("electricity")}</option>
-                  <option value="water">{t("water")}</option>
-                  <option value="gas">{t("gas")}</option>
-                  <option value="pump">{t("pump")}</option>
-                  <option value="other">{t("other")}</option>
-                </Select>
-              </Field>
-              <Field label={t("meter_label")}>
-                <Input name="label" required placeholder="Electricity - 3B" />
-              </Field>
-              <div className="grid grid-cols-3 gap-3">
-                <Field label={t("unit_rate")}>
-                  <Input name="unitRate" type="number" step="0.0001" min="0" defaultValue={(org.settings as any)?.defaultUnitRate ?? 0} />
-                </Field>
-                <Field label={t("meter_charge")}>
-                  <Input name="meterCharge" type="number" step="0.01" min="0" defaultValue={(org.settings as any)?.defaultMeterCharge ?? 0} />
-                </Field>
-                <Field label={t("other_charge")}>
-                  <Input name="otherCharge" type="number" step="0.01" min="0" defaultValue={(org.settings as any)?.defaultOtherCharge ?? 0} />
-                </Field>
-              </div>
-              <Field label={t("starting_reading")}>
-                <Input name="startingReading" type="number" step="0.01" min="0" defaultValue="0" />
-              </Field>
-              <AllocationAdvanced
-                labels={{
-                  advanced: t("more_settings"),
-                  allocation: "Shared cost handling",
-                  ownerExpense: "Owner expense (don't bill tenants)",
-                  equalSplit: "Split equally across flats",
-                  hint: "Only applies to shared meters like a water pump",
+              <MeterForm
+                properties={properties}
+                flatOptions={flatOptions}
+                defaultValues={{
+                  defaultUnitRate: (org.settings as any)?.defaultUnitRate ?? 0,
+                  defaultMeterCharge: (org.settings as any)?.defaultMeterCharge ?? 0,
+                  defaultOtherCharge: (org.settings as any)?.defaultOtherCharge ?? 0,
                 }}
+                labels={meterFormLabels}
               />
-              <Button type="submit" className="w-full">
-                {t("save")}
-              </Button>
-              <CloseOnSuccess />
-            </form>
-          </Modal>
+            </Modal>
           </div>
         }
       />
@@ -149,47 +115,20 @@ export default async function MetersPage({ searchParams }: { searchParams: { mon
                       </button>
                     }
                   >
-                    <form action={updateMeter.bind(null, m.id)} className="space-y-4">
-                      <Field label={t("meter_label")}>
-                        <Input name="label" defaultValue={m.label} required />
-                      </Field>
-                      <Field label={t("meter_type")}>
-                        <Select name="type" defaultValue={m.type}>
-                          <option value="electricity">{t("electricity")}</option>
-                          <option value="water">{t("water")}</option>
-                          <option value="gas">{t("gas")}</option>
-                          <option value="pump">{t("pump")}</option>
-                          <option value="other">{t("other")}</option>
-                        </Select>
-                      </Field>
-                      <div className="grid grid-cols-3 gap-3">
-                        <Field label={t("unit_rate")}>
-                          <Input name="unitRate" type="number" step="0.0001" min="0" defaultValue={m.unitRate} />
-                        </Field>
-                        <Field label={t("meter_charge")}>
-                          <Input name="meterCharge" type="number" step="0.01" min="0" defaultValue={m.meterCharge} />
-                        </Field>
-                        <Field label={t("other_charge")}>
-                          <Input name="otherCharge" type="number" step="0.01" min="0" defaultValue={m.otherCharge} />
-                        </Field>
-                      </div>
-                      <label className="flex items-center gap-2 text-sm text-ink-800">
-                        <input type="checkbox" name="active" defaultChecked={m.active} className="h-4 w-4 rounded border-ink-900/20" />
-                        {t("status_active")}
-                      </label>
-                      {!m.flat && (
-                        <Field label="Shared cost handling" hint="How this shared meter's cost affects tenant bills">
-                          <Select name="allocationMethod" defaultValue={m.allocationMethod}>
-                            <option value="owner_expense">Owner expense (don't bill tenants)</option>
-                            <option value="equal_split">Split equally across flats</option>
-                          </Select>
-                        </Field>
-                      )}
-                      <Button type="submit" className="w-full">
-                        {t("save")}
-                      </Button>
-                      <CloseOnSuccess />
-                    </form>
+                    <MeterForm
+                      meterId={m.id}
+                      defaultValues={{
+                        flatId: m.flatId,
+                        type: m.type,
+                        label: m.label,
+                        unitRate: m.unitRate,
+                        meterCharge: m.meterCharge,
+                        otherCharge: m.otherCharge,
+                        allocationMethod: m.allocationMethod,
+                        active: m.active,
+                      }}
+                      labels={meterFormLabels}
+                    />
                   </Modal>
                   <ConfirmDeleteButton action={deleteMeter.bind(null, m.id)} confirmText={t("confirm_delete")} />
                 </div>

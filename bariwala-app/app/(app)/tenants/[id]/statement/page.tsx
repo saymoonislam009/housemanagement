@@ -1,6 +1,6 @@
 import { getOrgContext, getTenant, getAdjustmentForFlatMonth } from "@/lib/queries";
 import { PrintButton } from "@/components/PrintButton";
-import { money, monthLabel, firstOfMonth, shortDate } from "@/lib/format";
+import { money, monthLabel, firstOfMonth, shortDate, whatsAppLink } from "@/lib/format";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
@@ -62,13 +62,28 @@ export default async function TenantStatementPage({
   );
   if (parseFloat(bill.adjustmentAmount) !== 0) rows.push(["Adjustment", parseFloat(bill.adjustmentAmount)]);
 
+  const waMessage = `Hi ${tenant.name}, here's your ${monthLabel(month, dLocale)} statement for ${bill.propertyName} · ${bill.flatName}: Total Payable ${money(bill.totalDue, org.currency)}, Paid ${money(bill.totalPaid, org.currency)}, Remaining ${money(remaining, org.currency)}.`;
+  const waLink = whatsAppLink(tenant.phone, waMessage);
+
   return (
     <div className="mx-auto max-w-lg py-6">
-      <div className="mb-4 flex items-center justify-between print:hidden">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 print:hidden">
         <Link href={`/tenants/${tenant.id}`} className="text-xs font-medium text-ink-600 hover:text-ink-900">
           ← Back
         </Link>
-        <PrintButton />
+        <div className="flex items-center gap-2">
+          {waLink && (
+            <a
+              href={waLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg border border-okay/30 px-4 py-2 text-sm font-medium text-okay hover:bg-okay/10"
+            >
+              WhatsApp
+            </a>
+          )}
+          <PrintButton />
+        </div>
       </div>
 
       <div className="card p-8">

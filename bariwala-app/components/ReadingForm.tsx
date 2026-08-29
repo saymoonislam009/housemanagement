@@ -1,10 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import { useFormState, useFormStatus } from "react-dom";
 import { Field, Input, Button } from "./ui";
 import { recordReading } from "@/lib/actions/meters";
 import { money } from "@/lib/format";
 import { CloseOnSuccess } from "./CloseOnSuccess";
+
+function SubmitButton({ label }: { label: string }) {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" className="w-full" disabled={pending}>
+      {pending ? "…" : label}
+    </Button>
+  );
+}
 
 export function ReadingForm({
   meterId,
@@ -30,12 +40,14 @@ export function ReadingForm({
   const [current, setCurrent] = useState(existingCurrent ?? previousReading);
   const [mCharge, setMCharge] = useState(meterCharge);
   const [oCharge, setOCharge] = useState(otherCharge);
+  const [state, formAction] = useFormState(recordReading, null);
 
   const units = Math.max(0, current - previousReading);
   const amount = units * unitRate + mCharge + oCharge;
+  const readingTooLow = current < previousReading;
 
   return (
-    <form action={recordReading} className="space-y-4">
+    <form action={formAction} className="space-y-4">
       <input type="hidden" name="meterId" value={meterId} />
       <input type="hidden" name="month" value={month} />
 
@@ -51,10 +63,17 @@ export function ReadingForm({
             required
             value={current}
             onChange={(e) => setCurrent(parseFloat(e.target.value) || 0)}
-            className="tabular"
+            className={`tabular ${readingTooLow ? "border-clay-500" : ""}`}
           />
         </Field>
       </div>
+
+      {readingTooLow && (
+        <p className="rounded-lg bg-clay-500/10 px-3 py-2 text-xs text-clay-500">
+          This is lower than the previous reading ({previousReading}). If the meter was reset or replaced, edit the
+          meter's starting reading instead of entering a lower number here.
+        </p>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <Field label={labels.meter_charge}>
@@ -94,10 +113,10 @@ export function ReadingForm({
         </div>
       </div>
 
-      <Button type="submit" className="w-full">
-        {labels.save}
-      </Button>
-      <CloseOnSuccess />
+      {state?.error && <p className="rounded-lg bg-clay-500/10 px-3 py-2 text-sm text-clay-500">{state.error}</p>}
+
+      <SubmitButton label={labels.save} />
+      <CloseOnSuccess skip={!!state?.error} />
     </form>
   );
 }

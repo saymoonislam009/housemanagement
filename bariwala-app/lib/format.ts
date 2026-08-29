@@ -31,6 +31,19 @@ export function timeAgo(date: Date | string, locale = "en-US") {
   return shortDate(d, locale);
 }
 
+// Builds a wa.me deep link with a pre-filled message. Normalizes common BD phone
+// formats (leading 0, or already-international) into the +880 form WhatsApp needs.
+export function whatsAppLink(phone: string | null | undefined, message: string): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/[^\d]/g, "");
+  let intl = digits;
+  if (digits.startsWith("880")) intl = digits;
+  else if (digits.startsWith("0")) intl = "880" + digits.slice(1);
+  else if (digits.length === 10) intl = "880" + digits; // e.g. 1712345678
+  else return null; // not recognizable enough to risk sending to the wrong number
+  return `https://wa.me/${intl}?text=${encodeURIComponent(message)}`;
+}
+
 export function firstOfMonth(date = new Date()) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1)).toISOString().slice(0, 10);
 }

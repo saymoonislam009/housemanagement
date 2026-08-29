@@ -81,7 +81,7 @@ export default async function SettingsPage() {
               Pre-fills new meters so you're not typing the same rate every time. Each meter can still be
               adjusted individually under <span className="font-medium text-ink-800">{t("nav_meters")}</span>.
             </p>
-            <form action={updateBillingDefaults} className="grid grid-cols-3 gap-3">
+            <form action={updateBillingDefaults} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <Field label={t("unit_rate")}>
                 <Input name="defaultUnitRate" type="number" step="0.0001" min="0" defaultValue={(org.settings as any)?.defaultUnitRate ?? 0} />
               </Field>
@@ -91,7 +91,10 @@ export default async function SettingsPage() {
               <Field label={t("other_charge")}>
                 <Input name="defaultOtherCharge" type="number" step="0.01" min="0" defaultValue={(org.settings as any)?.defaultOtherCharge ?? 0} />
               </Field>
-              <div className="col-span-3">
+              <Field label="Rent due day" hint="Day of month rent is due">
+                <Input name="rentDueDay" type="number" min="1" max="28" defaultValue={(org.settings as any)?.rentDueDay ?? 5} />
+              </Field>
+              <div className="col-span-2 sm:col-span-4">
                 <Button type="submit">{t("save_changes")}</Button>
               </div>
             </form>
