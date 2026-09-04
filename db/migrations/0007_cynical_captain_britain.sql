@@ -1,0 +1,1 @@
+ALTER TABLE "meters" ADD COLUMN "starting_month" date;
