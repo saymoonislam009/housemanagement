@@ -38,7 +38,7 @@ export default async function PrintMonthlyBillsPage({ searchParams }: { searchPa
   );
 
   return (
-    <div className="mx-auto max-w-5xl py-6">
+    <div className="print-landscape mx-auto max-w-6xl py-6">
       <div className="mb-4 flex items-center justify-between print:hidden">
         <Link href="/bills" className="text-xs font-medium text-ink-600 hover:text-ink-900">
           ← Back to Monthly Bills
