@@ -305,8 +305,12 @@ export async function setCategoryOverride(adjustmentId: string, formData: FormDa
     overrides[category] = round2(parseFloat(rawValue) || 0);
   }
 
-  await db.update(monthlyAdjustments).set({ categoryOverrides: overrides }).where(eq(monthlyAdjustments.id, adjustmentId));
-  await recalcAdjustmentForFlatMonth(adj.flatId, adj.month);
+  try {
+    await db.update(monthlyAdjustments).set({ categoryOverrides: overrides }).where(eq(monthlyAdjustments.id, adjustmentId));
+    await recalcAdjustmentForFlatMonth(adj.flatId, adj.month);
+  } catch {
+    throw new Error("Something went wrong saving that. Please try again.");
+  }
   revalidatePath("/bills");
   revalidatePath("/dashboard");
 }
@@ -320,100 +324,125 @@ export async function setManualAdjustment(adjustmentId: string, formData: FormDa
     parseFloat(existing.rentAmount) + parseFloat(existing.billsAmount) + amount + parseFloat(existing.previousOutstanding)
   );
   const status = computeStatus(totalDue, parseFloat(existing.totalPaid));
-  await db
-    .update(monthlyAdjustments)
-    .set({ adjustmentAmount: String(amount), adjustmentNote: note || null, totalDue: String(totalDue), status, updatedAt: new Date() })
-    .where(eq(monthlyAdjustments.id, adjustmentId));
-  await cascadeForward(existing.flatId, existing.month);
+  try {
+    await db
+      .update(monthlyAdjustments)
+      .set({ adjustmentAmount: String(amount), adjustmentNote: note || null, totalDue: String(totalDue), status, updatedAt: new Date() })
+      .where(eq(monthlyAdjustments.id, adjustmentId));
+    await cascadeForward(existing.flatId, existing.month);
+  } catch {
+    throw new Error("Something went wrong saving that. Please try again.");
+  }
   revalidatePath("/bills");
   revalidatePath("/dashboard");
 }
 
-export async function recordPayment(formData: FormData) {
-  const session = await requireOrg();
-  const flatId = str(formData, "flatId");
-  await assertOrgOwnsFlat(session.orgId, flatId);
-  const tenantId = str(formData, "tenantId");
-  const adjustmentId = str(formData, "adjustmentId");
-  if (adjustmentId) await assertOrgOwnsAdjustment(session.orgId, adjustmentId);
-  const amount = round2(num(formData, "amount", 0));
-  const method = (str(formData, "method") || "cash") as any;
-  const paidOn = str(formData, "paidOn");
-  const note = str(formData, "note");
-  if (!flatId || amount <= 0 || !paidOn) return;
+export type PaymentActionState = { error?: string } | null;
 
-  await db.insert(payments).values({
-    id: id("pay"),
-    orgId: session.orgId,
-    flatId,
-    tenantId: tenantId || null,
-    adjustmentId: adjustmentId || null,
-    amount: String(amount),
-    method,
-    paidOn,
-    note: note || null,
-  });
+export async function recordPayment(_prev: PaymentActionState, formData: FormData): Promise<PaymentActionState> {
+  try {
+    const session = await requireOrg();
+    const flatId = str(formData, "flatId");
+    if (!flatId) return { error: "Missing flat." };
+    await assertOrgOwnsFlat(session.orgId, flatId);
+    const tenantId = str(formData, "tenantId");
+    const adjustmentId = str(formData, "adjustmentId");
+    if (adjustmentId) await assertOrgOwnsAdjustment(session.orgId, adjustmentId);
+    const amount = round2(num(formData, "amount", 0));
+    if (amount <= 0) return { error: "Amount must be greater than zero." };
+    const method = (str(formData, "method") || "cash") as any;
+    const paidOn = str(formData, "paidOn");
+    if (!paidOn) return { error: "Please pick a payment date." };
+    const note = str(formData, "note");
 
-  if (adjustmentId) {
-    const adj = await db.query.monthlyAdjustments.findFirst({ where: eq(monthlyAdjustments.id, adjustmentId) });
-    if (adj) {
-      const totalPaid = round2(parseFloat(adj.totalPaid) + amount);
-      const status = computeStatus(parseFloat(adj.totalDue), totalPaid);
-      await db
-        .update(monthlyAdjustments)
-        .set({ totalPaid: String(totalPaid), status, updatedAt: new Date() })
-        .where(eq(monthlyAdjustments.id, adjustmentId));
-      await cascadeForward(adj.flatId, adj.month);
+    await db.insert(payments).values({
+      id: id("pay"),
+      orgId: session.orgId,
+      flatId,
+      tenantId: tenantId || null,
+      adjustmentId: adjustmentId || null,
+      amount: String(amount),
+      method,
+      paidOn,
+      note: note || null,
+    });
+
+    if (adjustmentId) {
+      const adj = await db.query.monthlyAdjustments.findFirst({ where: eq(monthlyAdjustments.id, adjustmentId) });
+      if (adj) {
+        const totalPaid = round2(parseFloat(adj.totalPaid) + amount);
+        const status = computeStatus(parseFloat(adj.totalDue), totalPaid);
+        await db
+          .update(monthlyAdjustments)
+          .set({ totalPaid: String(totalPaid), status, updatedAt: new Date() })
+          .where(eq(monthlyAdjustments.id, adjustmentId));
+        await cascadeForward(adj.flatId, adj.month);
+      }
     }
+
+    await db.insert(notifications).values({
+      id: id("ntf"),
+      orgId: session.orgId,
+      title: "Payment recorded",
+      body: `A payment of ${amount} was recorded.`,
+      kind: "payment",
+    });
+
+    revalidatePath("/bills");
+    revalidatePath("/payments");
+    revalidatePath("/dashboard");
+    revalidatePath("/tenants");
+    return null;
+  } catch (err) {
+    if (err instanceof Error && err.message === "NOT_FOUND_OR_FORBIDDEN") throw err;
+    return { error: "Something went wrong recording this payment. Please try again." };
   }
-
-  await db.insert(notifications).values({
-    id: id("ntf"),
-    orgId: session.orgId,
-    title: "Payment recorded",
-    body: `A payment of ${amount} was recorded.`,
-    kind: "payment",
-  });
-
-  revalidatePath("/bills");
-  revalidatePath("/payments");
-  revalidatePath("/dashboard");
-  revalidatePath("/tenants");
 }
 
-export async function updatePayment(paymentId: string, formData: FormData) {
-  const session = await requireOrg();
-  const payment = await assertOrgOwnsPayment(session.orgId, paymentId);
-  const newAmount = round2(num(formData, "amount", 0));
-  const method = (str(formData, "method") || "cash") as any;
-  const paidOn = str(formData, "paidOn");
-  const note = str(formData, "note");
-  if (newAmount <= 0 || !paidOn) return;
+export async function updatePayment(
+  paymentId: string,
+  _prev: PaymentActionState,
+  formData: FormData
+): Promise<PaymentActionState> {
+  try {
+    const session = await requireOrg();
+    const payment = await assertOrgOwnsPayment(session.orgId, paymentId);
+    const newAmount = round2(num(formData, "amount", 0));
+    if (newAmount <= 0) return { error: "Amount must be greater than zero." };
+    const method = (str(formData, "method") || "cash") as any;
+    const paidOn = str(formData, "paidOn");
+    if (!paidOn) return { error: "Please pick a payment date." };
+    const note = str(formData, "note");
 
-  const oldAmount = parseFloat(payment.amount);
+    const oldAmount = parseFloat(payment.amount);
 
-  await db
-    .update(payments)
-    .set({ amount: String(newAmount), method, paidOn, note: note || null })
-    .where(eq(payments.id, paymentId));
+    await db
+      .update(payments)
+      .set({ amount: String(newAmount), method, paidOn, note: note || null })
+      .where(eq(payments.id, paymentId));
 
-  if (payment.adjustmentId) {
-    const adj = await db.query.monthlyAdjustments.findFirst({ where: eq(monthlyAdjustments.id, payment.adjustmentId) });
-    if (adj) {
-      const totalPaid = round2(Math.max(0, parseFloat(adj.totalPaid) - oldAmount + newAmount));
-      const status = computeStatus(parseFloat(adj.totalDue), totalPaid);
-      await db
-        .update(monthlyAdjustments)
-        .set({ totalPaid: String(totalPaid), status, updatedAt: new Date() })
-        .where(eq(monthlyAdjustments.id, adj.id));
-      await cascadeForward(adj.flatId, adj.month);
+    if (payment.adjustmentId) {
+      const adj = await db.query.monthlyAdjustments.findFirst({ where: eq(monthlyAdjustments.id, payment.adjustmentId) });
+      if (adj) {
+        const totalPaid = round2(Math.max(0, parseFloat(adj.totalPaid) - oldAmount + newAmount));
+        const status = computeStatus(parseFloat(adj.totalDue), totalPaid);
+        await db
+          .update(monthlyAdjustments)
+          .set({ totalPaid: String(totalPaid), status, updatedAt: new Date() })
+          .where(eq(monthlyAdjustments.id, adj.id));
+        await cascadeForward(adj.flatId, adj.month);
+      }
     }
-  }
 
-  revalidatePath("/bills");
-  revalidatePath("/payments");
-  revalidatePath("/dashboard");
-  revalidatePath("/tenants");
+    revalidatePath("/bills");
+    revalidatePath("/payments");
+    revalidatePath("/dashboard");
+    revalidatePath("/tenants");
+    return null;
+  } catch (err) {
+    if (err instanceof Error && err.message === "NOT_FOUND_OR_FORBIDDEN") throw err;
+    return { error: "Something went wrong saving these changes. Please try again." };
+  }
 }
 
 export async function deletePayment(paymentId: string) {

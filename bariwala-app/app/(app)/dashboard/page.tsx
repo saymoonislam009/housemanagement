@@ -30,6 +30,9 @@ export default async function DashboardPage() {
   const rentDueDay = (org.settings as any)?.rentDueDay ?? 5;
   const daysOverdue = Math.max(0, new Date().getDate() - rentDueDay);
 
+  const expected = adjustments.reduce((s, a) => s + parseFloat(a.totalDue), 0);
+  const collectionPct = expected > 0 ? Math.min(100, Math.round((collected / expected) * 100)) : 0;
+
   const stats = [
     { label: t("stat_collected"), value: money(collected, org.currency), icon: paths.wallet, tone: "text-okay" },
     { label: t("stat_due"), value: money(due, org.currency), icon: paths.receipt, tone: "text-clay-500" },
@@ -61,6 +64,26 @@ export default async function DashboardPage() {
           </Card>
         ))}
       </div>
+
+      {expected > 0 && (
+        <Card className="mt-3 !p-4">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-medium text-ink-800">{monthLabel(month, dLocale)} collection</span>
+            <span className="tabular text-ink-600">
+              {money(collected, org.currency)} <span className="text-ink-500">of</span> {money(expected, org.currency)}
+            </span>
+          </div>
+          <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-ink-900/8">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                collectionPct >= 100 ? "bg-okay" : collectionPct >= 50 ? "bg-brass-500" : "bg-clay-500"
+              }`}
+              style={{ width: `${collectionPct}%` }}
+            />
+          </div>
+          <p className="mt-1.5 text-xs text-ink-600">{collectionPct}% collected so far</p>
+        </Card>
+      )}
 
       {(attention.unpaidCount > 0 || attention.vacantCount > 0 || attention.missingReadings > 0) && (
         <div className="mt-6">
