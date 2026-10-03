@@ -43,6 +43,7 @@ export function MeterForm({
     meterCharge?: string;
     otherCharge?: string;
     startingReading?: string;
+    startingMonth?: string;
     allocationMethod?: string;
     active?: boolean;
     defaultUnitRate?: number;
@@ -150,9 +151,14 @@ export function MeterForm({
         </Field>
       </div>
       {!meterId && (
-        <Field label={labels.startingReading}>
-          <Input name="startingReading" type="number" step="0.01" min="0" defaultValue={defaultValues?.startingReading ?? 0} />
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={labels.startingReading}>
+            <Input name="startingReading" type="number" step="0.01" min="0" defaultValue={defaultValues?.startingReading ?? 0} />
+          </Field>
+          <Field label="As of month" hint="Baseline, not a billed month">
+            <Input name="startingMonth" type="month" required defaultValue={defaultValues?.startingMonth ?? ""} />
+          </Field>
+        </div>
       )}
       {!meterId && (
         <AllocationAdvanced
