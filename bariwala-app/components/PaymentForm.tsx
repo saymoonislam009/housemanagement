@@ -1,9 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { useFormState, useFormStatus } from "react-dom";
 import { Field, Input, Select, Button } from "./ui";
 import { recordPayment } from "@/lib/actions/billing";
 import { CloseOnSuccess } from "./CloseOnSuccess";
+
+function SubmitButton({ label }: { label: string }) {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" className="w-full" disabled={pending}>
+      {pending ? "…" : label}
+    </Button>
+  );
+}
 
 export function PaymentForm({
   flatId,
@@ -19,8 +29,10 @@ export function PaymentForm({
   labels: Record<string, string>;
 }) {
   const [amount, setAmount] = useState(Math.max(0, balance));
+  const [state, formAction] = useFormState(recordPayment, null);
+
   return (
-    <form action={recordPayment} className="space-y-4">
+    <form action={formAction} className="space-y-4">
       <input type="hidden" name="flatId" value={flatId} />
       {tenantId && <input type="hidden" name="tenantId" value={tenantId} />}
       <input type="hidden" name="adjustmentId" value={adjustmentId} />
@@ -52,10 +64,9 @@ export function PaymentForm({
       <Field label={labels.note}>
         <Input name="note" />
       </Field>
-      <Button type="submit" className="w-full">
-        {labels.save}
-      </Button>
-      <CloseOnSuccess />
+      {state?.error && <p className="rounded-lg bg-clay-500/10 px-3 py-2 text-sm text-clay-500">{state.error}</p>}
+      <SubmitButton label={labels.save} />
+      <CloseOnSuccess skip={!!state?.error} />
     </form>
   );
 }

@@ -44,7 +44,7 @@
 }
 
 * {
-  border-color: theme("colors.ink.600" / 15%);
+  border-color: rgb(var(--ink-600) / 0.15);
 }
 
 html {
@@ -58,7 +58,7 @@ body {
 }
 
 ::selection {
-  background: theme("colors.brass.400" / 40%);
+  background: rgb(var(--brass-400) / 0.40);
 }
 
 :focus-visible {
@@ -89,7 +89,7 @@ body {
   background: theme("colors.paper.50");
   border-radius: theme("borderRadius.card");
   box-shadow: theme("boxShadow.card");
-  border: 1px solid theme("colors.ink.900" / 8%);
+  border: 1px solid rgb(var(--ink-900) / 0.08);
 }
 
 .scrollbar-thin::-webkit-scrollbar {
@@ -97,6 +97,77 @@ body {
   height: 6px;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: theme("colors.ink.600" / 30%);
+  background: rgb(var(--ink-600) / 0.30);
   border-radius: 999px;
+}
+
+/* ---------- Print ---------- */
+@media print {
+  /* Force light-theme values for printing regardless of the app's current dark
+     mode setting. Without this, dark mode's swapped variables (light text meant
+     to read against a dark screen) would print as near-white text on a plain
+     white page — invisible. A printed statement must always be readable on
+     paper, independent of how the screen happened to be themed. */
+  :root,
+  .dark {
+    --ink-950: 14 21 18;
+    --ink-900: 19 29 24;
+    --ink-800: 27 42 34;
+    --ink-700: 37 57 47;
+    --ink-600: 51 81 63;
+    --brass-400: 232 199 126;
+    --brass-500: 212 169 79;
+    --brass-600: 184 134 47;
+    --paper-50: 255 255 255;
+    --paper-100: 255 255 255;
+    --clay-500: 193 95 60;
+    --okay: 92 138 102;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  /* A card floating with a drop shadow looks odd on paper — flatten it to a
+     plain bordered block, which reads as a proper printed document. */
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #d8d3c4 !important;
+  }
+
+  @page {
+    margin: 1.5cm;
+  }
+
+  /* Repeat the header row on every printed page of a long table, and don't let
+     a single row get split across a page break. */
+  table thead {
+    display: table-header-group;
+  }
+  table tr {
+    break-inside: avoid;
+  }
+
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+
+  /* The full monthly report has ~13 columns — portrait would cram every column
+     unreadably small. Chrome/Edge support assigning a named page with its own
+     orientation via the CSS "page" property. */
+  .print-landscape {
+    page: landscape-report;
+  }
+  @page landscape-report {
+    size: landscape;
+    margin: 1cm;
+  }
 }

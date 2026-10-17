@@ -147,6 +147,12 @@ export const meters = pgTable("meters", {
   startingReading: numeric("starting_reading", { precision: 12, scale: 2 })
     .notNull()
     .default("0"),
+  // The month the starting reading was taken AS OF — the baseline, not a billable
+  // month itself. A reading can only be recorded for a month strictly after this,
+  // so there's never ambiguity about which month a fresh meter's first real
+  // reading belongs to. Nullable only so meters created before this existed keep
+  // working without a forced backfill.
+  startingMonth: date("starting_month"),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
